@@ -1,0 +1,226 @@
+:root {
+  --bg: #f4f6f9;
+  --card-bg: #ffffff;
+  --text: #111827;
+  --secondary-text: #6b7280;
+  --primary: #2563eb;
+  --danger: #dc2626;
+  --shadow: rgba(0, 0, 0, 0.08);
+
+  /* Modal Farben */
+  --modal-bg: #ffffff;
+  --modal-text: #111827;
+  --modal-shadow: rgba(0, 0, 0, 0.25);
+}
+
+/* Dark Mode automatisch erkennen */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --text: #f1f5f9;
+    --secondary-text: #94a3b8;
+    --primary: #3b82f6;
+    --danger: #ef4444;
+    --shadow: rgba(0, 0, 0, 0.4);
+
+    /* Modal Farben Dark Mode */
+    --modal-bg: #1e293b;
+    --modal-text: #f1f5f9;
+    --modal-shadow: rgba(0, 0, 0, 0.6);
+  }
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+}
+
+.container {
+  padding: 40px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card,
+.material-card,
+.login-card {
+  background: var(--card-bg);
+  padding: 30px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+input,
+select {
+  padding: 8px;
+  margin-right: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--secondary-text);
+  background: transparent;
+  color: var(--text);
+}
+
+input::placeholder {
+  color: var(--secondary-text);
+}
+
+button {
+  padding: 8px 12px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: white;
+}
+
+button.delete {
+  background: var(--danger);
+}
+
+.logout {
+  background: var(--secondary-text);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  backdrop-filter: blur(3px);
+}
+
+.modal-box {
+  background: var(--modal-bg);
+  color: var(--modal-text);
+  padding: 25px;
+  border-radius: 12px;
+  width: 380px;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 0 25px var(--modal-shadow);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  color: var(--modal-text);
+  transition: 0.2s;
+}
+
+.modal-close:hover {
+  transform: scale(1.2);
+  color: var(--primary);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.material-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.material-table th {
+  text-align: left;
+  padding: 10px;
+  background: var(--secondary-text);
+  color: white;
+  border-radius: 6px;
+}
+
+.material-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--secondary-text);
+}
+
+.material-table tr:last-child td {
+  border-bottom: none;
+}
+
+
+select {
+  padding: 8px;
+  margin-right: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--secondary-text);
+  background: var(--card-bg);
+  color: var(--text);
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Pfeil für Dropdown */
+select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--text) 50%),
+                    linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position: calc(100% - 15px) calc(50% - 3px),
+                       calc(100% - 10px) calc(50% - 3px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* Hover */
+select:hover {
+  border-color: var(--primary);
+}
+
+/* Fokus */
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 4px var(--primary);
+}
+
+/* Dropdown-Liste (Optionen) */
+select option {
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+/* Dark Mode erzwingen */
+@media (prefers-color-scheme: dark) {
+  select {
+    background: var(--card-bg);
+    color: var(--text);
+    border-color: var(--secondary-text);
+  }
+
+  select option {
+    background: var(--card-bg);
+    color: var(--text);
+  }
+}
