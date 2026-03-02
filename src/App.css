@@ -117,7 +117,7 @@ button.delete {
   color: var(--modal-text);
   padding: 25px;
   border-radius: 12px;
-  width: 380px;
+  width: 500px;
   max-height: 70vh;
   overflow-y: auto;
   position: relative;
@@ -223,4 +223,32 @@ select option {
     background: var(--card-bg);
     color: var(--text);
   }
+}
+
+/* App.css */
+
+.header-left{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-logos{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.club-logo{
+  height: 44px;
+  width: auto;
+  object-fit: contain;
+  /*background: rgba(255,255,255,0.06);
+     border-radius: 10px;
+     padding: 6px; */
+}
+
+.header-title{
+  margin: 0;
+  line-height: 1.1;
 }

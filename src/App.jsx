@@ -1,63 +1,65 @@
-import { useEffect, useMemo, useState } from "react";
+// src/App.jsx
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { detailsSchema, normalizeDetailsForCategory, standorte, uid, getBootCapacity } from "./lib/schema";
+import { extractLastNumber } from "./lib/sort";
+
 import "./App.css";
 
-const kategorien = ["Alle", "Boote", "Skulls", "Riemen", "Ausleger", "Sonstiges"];
-const standorte = ["BRG", "SRV", "Fühlingen", "Extern"];
+import brgLogo from "./assets/logo_BRG.png";
+import srvLogo from "./assets/logo_SRV.jpg";
+
+import Auth from "./components/Auth";
+import AdminPanel from "./components/AdminPanel";
+import MaterialList from "./components/MaterialList";
+
+import DetailsModal from "./components/modals/DetailsModal";
+import HistoryModal from "./components/modals/HistoryModal";
+import DeleteModal from "./components/modals/DeleteModal";
+import MoveBoatModal from "./components/modals/MoveBoatModal";
+import MoveSetModal from "./components/modals/MoveSetModal";
+import CapacityConfirmModal from "./components/modals/CapacityConfirmModal";
+import BulkMoveConfirmModal from "./components/modals/BulkMoveConfirmModal";
 
 
-const detailsSchema = {
-  Boote: [
-    { key: "plaetze", label: "Plätze", type: "number", step: 1, min: 0 },
-    { key: "gewicht_kg", label: "Gewicht", type: "number", step: 0.1, min: 0, unit: "kg" },
-  ],
-  Skulls: [
-    { key: "gesamtlaenge_cm", label: "Gesamtlänge", type: "number", step: 0.1, min: 0, unit: "cm" },
-    { key: "innenhebel_cm", label: "Innenhebellänge", type: "number", step: 0.1, min: 0, unit: "cm" },
-    {
-      key: "schafttyp",
-      label: "Schafttyp",
-      type: "select",
-      options: ["", "Skinny", "Ultralight"],
-    },
-    {
-      key: "blattform",
-      label: "Blattform", 
-      type: "select",
-     options: ["", "Smoothy2", "Plain", "Comp", 'Fat2', "Macon"],
-    },
-  ],
-  Riemen: [
-    { key: "gesamtlaenge_cm", label: "Gesamtlänge", type: "number", step: 0.1, min: 0, unit: "cm" },
-    { key: "innenhebel_cm", label: "Innenhebellänge", type: "number", step: 0.1, min: 0, unit: "cm" },
-    {
-      key: "schafttyp",
-      label: "Schafttyp",
-      type: "select",
-      options: ["", "Skinny", "Ultralight"],
-    },
-        {
-      key: "blattform",
-      label: "Blattform", 
-      type: "select",
-     options: ["", "Smoothy2", "Plain", "Comp", "Fat2", "Macon",],
-    },
-  ],
-  Ausleger: [
-    { key: "dollenabstand_cm", label: "Dollenabstand", type: "number", step: 0.1, min: 0, unit: "cm" },
-    { key: "anlage_°", label: "Anlage", type: "number", step: 0.1, min: 0, unit: "°" },
-  ],
-  Sonstiges: [{ key: "notiz", label: "Notiz", type: "text", placeholder: "Freitext..." }],
-};
 
-function normalizeDetailsForCategory(category, values) {
-  const fields = detailsSchema[category] || [];
-  const allowed = new Set(fields.map((f) => f.key));
-  const out = {};
-  for (const [k, v] of Object.entries(values || {})) {
-    if (allowed.has(k) && v !== "" && v !== null && v !== undefined) out[k] = v;
-  }
-  return out;
+function useOnlineCount(session) {
+  const [onlineCount, setOnlineCount] = useState(1);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const channel = supabase.channel("online-users", {
+      config: { presence: { key: session.user.id } },
+    });
+
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState(); // { key: [metas...] }
+      const uniqueUsers = Object.keys(state).length;
+      setOnlineCount(uniqueUsers);
+    });
+
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        // Tracke "ich bin online"
+        await channel.track({
+          user_id: session.user.id,
+          ts: Date.now(),
+        });
+      }
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
+  return onlineCount;
+}
+
+async function getCurrentUserId() {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.id ?? null;
 }
 
 export default function App() {
@@ -65,19 +67,84 @@ export default function App() {
   const [material, setMaterial] = useState([]);
   const [profile, setProfile] = useState(null);
 
+  const isAdmin = profile?.role === "admin";
+
   const [history, setHistory] = useState({});
   const [openHistoryId, setOpenHistoryId] = useState(null);
 
   const [showAdmin, setShowAdmin] = useState(false);
   const [deleteItem, setDeleteItem] = useState(null);
 
-  const isAdmin = profile?.role === "admin";
-
-  //Details State je Material
   const [detailsByMaterialId, setDetailsByMaterialId] = useState({});
   const [openDetailsId, setOpenDetailsId] = useState(null);
 
-  //Login
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const [showSelectedList, setShowSelectedList] = useState(false);
+
+  const onlineCount = useOnlineCount(session);
+
+  const [moveBoatDialog, setMoveBoatDialog] = useState(null);
+  const [moveSetDialog, setMoveSetDialog] = useState(null);
+
+  const [bulkMoveConfirm, setBulkMoveConfirm] = useState(null);
+  const [bulkTarget, setBulkTarget] = useState(""); // für das Select (damit es sich zurücksetzt)
+
+  // ✅ Kapazitäts-Warnmodal
+  const [capacityConfirm, setCapacityConfirm] = useState(null);
+
+  // -----------------------------------------------------
+  // MATERIAL + DETAILS (Batch)
+  // -----------------------------------------------------
+  const fetchMaterialAndDetails = useCallback(async () => {
+    const { data: mat, error } = await supabase.from("material").select("*").order("name");
+    if (error) {
+      console.error("Material laden Fehler:", error);
+      setMaterial([]);
+      setDetailsByMaterialId({});
+      return;
+    }
+
+    const list = mat || [];
+    setMaterial(list);
+
+    const ids = list.map((m) => m.id).filter(Boolean);
+    const chunkSize = 400;
+    const map = {};
+
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      // eslint-disable-next-line no-await-in-loop
+      const { data: det, error: detError } = await supabase.from("material_details").select("material_id, values").in("material_id", chunk);
+
+      if (detError) {
+        console.error("Details laden Fehler:", detError);
+        continue;
+      }
+      (det || []).forEach((row) => {
+        map[row.material_id] = row.values || {};
+      });
+    }
+
+    setDetailsByMaterialId(map);
+  }, []);
+
+  // -----------------------------------------------------
+  // PROFILE
+  // -----------------------------------------------------
+  const loadProfile = useCallback(
+    async (userId) => {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+      if (error) console.error("Profile Fehler:", error);
+      setProfile(data || null);
+      await fetchMaterialAndDetails();
+    },
+    [fetchMaterialAndDetails]
+  );
+
+  // -----------------------------------------------------
+  // LOGIN / SESSION
+  // -----------------------------------------------------
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -90,37 +157,30 @@ export default function App() {
       else {
         setProfile(null);
         setMaterial([]);
+        setDetailsByMaterialId({});
         setShowAdmin(false);
         setOpenHistoryId(null);
         setOpenDetailsId(null);
+        setSelectedIds(new Set());
+        setMoveBoatDialog(null);
+        setMoveSetDialog(null);
+        setCapacityConfirm(null);
       }
     });
 
     return () => sub?.subscription?.unsubscribe?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadProfile(userId) {
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (error) console.error("Profile Fehler:", error);
-
-    setProfile(data || null);
-    fetchMaterial();
-  }
-
-  // MATERIAL LADEN
-  async function fetchMaterial() {
-    const { data, error } = await supabase.from("material").select("*").order("name");
-    if (error) console.error("Material laden Fehler:", error);
-    setMaterial(data || []);
-  }
-
-  //Verlauf laden
-  async function loadHistory(materialId) {
+  // -----------------------------------------------------
+  // HISTORY
+  // -----------------------------------------------------
+  const loadHistory = useCallback(async (materialId) => {
     const { data: hist, error: histError } = await supabase
       .from("material_history")
       .select("id, material_id, alter_standort, neuer_standort, geändert_am, geändert_von")
       .eq("material_id", materialId)
-      .order("geändert_am", { ascending: true });
+      .order("geändert_am", { ascending: false });
 
     if (histError) {
       console.error("History Fehler:", histError);
@@ -134,7 +194,6 @@ export default function App() {
     }
 
     const userIds = [...new Set(hist.map((h) => h.geändert_von).filter(Boolean))];
-
     let profileMap = {};
     if (userIds.length > 0) {
       const { data: profs, error: profError } = await supabase.from("profiles").select("id, name").in("id", userIds);
@@ -148,37 +207,16 @@ export default function App() {
     });
 
     setHistory((prev) => ({ ...prev, [materialId]: formatted }));
-  }
+  }, []);
 
-  // DETAILS LADEN / SPEICHERN
-  async function loadDetails(materialId) {
-    const { data, error } = await supabase
-      .from("material_details")
-      .select("material_id, values")
-      .eq("material_id", materialId)
-      .single();
-
-    if (error) {
-      setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: {} }));
-      return;
-    }
-
-    setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: data?.values || {} }));
-  }
-
-  async function saveDetails(materialId, newValues) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const payload = {
-      material_id: materialId,
-      values: newValues,
-      updated_by: user?.id ?? null,
-    };
+  // -----------------------------------------------------
+  // DETAILS SAVE
+  // -----------------------------------------------------
+  const saveDetails = useCallback(async (materialId, newValues) => {
+    const userId = await getCurrentUserId();
+    const payload = { material_id: materialId, values: newValues, updated_by: userId };
 
     const { error } = await supabase.from("material_details").upsert(payload, { onConflict: "material_id" });
-
     if (error) {
       console.error("Details speichern Fehler:", error);
       alert("Speichern fehlgeschlagen: " + error.message);
@@ -187,153 +225,766 @@ export default function App() {
 
     setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: newValues }));
     return true;
-  }
+  }, []);
 
+  // -----------------------------------------------------
+  // ✅ Admin: Name ändern
+  // -----------------------------------------------------
+  const saveItemName = useCallback(async (materialId, newName) => {
+    const name = String(newName || "").trim();
+    if (!name) return false;
 
-  // MATERIAL HINZUFÜGEN (nur Admin) + DETAILS direkt mit speichern
-  async function addMaterialWithDetails({ name, kategorie, standort, details }) {
-    if (!name || !showAdmin || !isAdmin) return;
-
-    const { data: inserted, error } = await supabase
-      .from("material")
-      .insert({ name, kategorie, standort })
-      .select()
-      .single();
-
+    const { error } = await supabase.from("material").update({ name }).eq("id", materialId);
     if (error) {
-      console.error("Material hinzufügen Fehler:", error);
-      alert("Fehler beim Hinzufügen: " + error.message);
-      return;
+      alert("Name speichern fehlgeschlagen: " + error.message);
+      return false;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    setMaterial((prev) => prev.map((m) => (m.id === materialId ? { ...m, name } : m)));
+    return true;
+  }, []);
 
-    // optional: Standort-History
-    const { error: historyError } = await supabase.from("material_history").insert({
-      material_id: inserted.id,
-      alter_standort: "",
-      neuer_standort: standort,
-      geändert_von: user?.id ?? null,
-      geändert_am: new Date().toISOString(),
-    });
-    if (historyError) console.error("History hinzufügen Fehler:", historyError);
+  // -----------------------------------------------------
+  // ✅ Admin: Satz/Bundlename umbenennen (Skulls/Riemen Bundle)
+  // -----------------------------------------------------
+  const renameBundleBaseName = useCallback(
+    async (bundle_id, newBaseName) => {
+      if (!bundle_id) return false;
+      const base = String(newBaseName || "").trim();
+      if (!base) return false;
 
-    // ✅ Details direkt anlegen (upsert)
-    const cleaned = normalizeDetailsForCategory(kategorie, details);
-    if (Object.keys(cleaned).length > 0) {
-      const { error: detError } = await supabase.from("material_details").upsert(
-        {
-          material_id: inserted.id,
-          values: cleaned,
-          updated_by: user?.id ?? null,
-        },
-        { onConflict: "material_id" }
+      const items = material.filter((m) => m.bundle_id === bundle_id && (m.kategorie === "Skulls" || m.kategorie === "Riemen"));
+      if (items.length === 0) return false;
+
+      for (const it of items) {
+        const old = it.name || "";
+        const m = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/); // base + " 1" + " - Backbord"
+        let nextName = base;
+        if (m) nextName = `${base}${m[2]}${m[3] || ""}`;
+        else nextName = `${base} ${old}`;
+
+        // eslint-disable-next-line no-await-in-loop
+        const { error } = await supabase.from("material").update({ name: nextName }).eq("id", it.id);
+        if (error) {
+          alert("Umbenennen fehlgeschlagen: " + error.message);
+          return false;
+        }
+      }
+
+      setMaterial((prev) =>
+        prev.map((m) => {
+          if (m.bundle_id !== bundle_id) return m;
+          if (!(m.kategorie === "Skulls" || m.kategorie === "Riemen")) return m;
+          const old = m.name || "";
+          const mm = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
+          const nextName = mm ? `${base}${mm[2]}${mm[3] || ""}` : `${base} ${old}`;
+          return { ...m, name: nextName };
+        })
       );
-      if (detError) console.error("Details anlegen Fehler:", detError);
+
+      return true;
+    },
+    [material]
+  );
+
+  // -----------------------------------------------------
+  // ✅ Boot + Zubehör anlegen
+  // -----------------------------------------------------
+  const addBoatWithSeatItems = useCallback(
+    async ({
+      boatName,
+      standort,
+      boatDetails,
+      hasHuelle,
+      huelleName,
+      huelleNotiz,
+      createSkullAusleger,
+      createRiemenAusleger,
+      auslegerSkullPerSeatDetails,
+      auslegerRiemenPerSeatDetails,
+      rollsitzPerSeatDetails,
+    }) => {
+      if (!showAdmin || !isAdmin) return;
+
+      if (!createSkullAusleger && !createRiemenAusleger) {
+        alert("Bitte mindestens Skullausleger oder Riemenausleger auswählen.");
+        return;
+      }
+
+      const userId = await getCurrentUserId();
+      const bundle_id = uid();
+      const plaetze = Math.max(1, Number(boatDetails?.plaetze || 1));
+
+      const rows = [];
+      rows.push({ name: boatName, kategorie: "Boote", standort, bundle_id });
+
+      if (hasHuelle) rows.push({ name: huelleName || `${boatName} - Hülle`, kategorie: "Hüllen", standort, bundle_id });
+
+      for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Rollsitz ${i}`, kategorie: "Rollsitze", standort, bundle_id });
+
+      if (createSkullAusleger) for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Skullausleger ${i}`, kategorie: "Ausleger", standort, bundle_id });
+
+      if (createRiemenAusleger) for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Riemenausleger ${i}`, kategorie: "Ausleger", standort, bundle_id });
+
+      const { data: inserted, error } = await supabase.from("material").insert(rows).select();
+      if (error) {
+        console.error("Boot+Zubehör anlegen Fehler:", error);
+        alert("Fehler beim Hinzufügen: " + error.message);
+        return;
+      }
+
+      const boatRow = inserted.find((r) => r.kategorie === "Boote");
+      const huelleRow = inserted.find((r) => r.kategorie === "Hüllen");
+      const rollsitzRows = inserted
+        .filter((r) => r.kategorie === "Rollsitze")
+        .sort((a, b) => (extractLastNumber(a.name) ?? 0) - (extractLastNumber(b.name) ?? 0));
+
+      const auslegerRows = inserted
+        .filter((r) => r.kategorie === "Ausleger")
+        .sort((a, b) => (extractLastNumber(a.name) ?? 0) - (extractLastNumber(b.name) ?? 0));
+
+      const boatValues = normalizeDetailsForCategory("Boote", {
+        ...boatDetails,
+        huelle_vorhanden: !!hasHuelle,
+        huelle_notiz: hasHuelle ? (huelleNotiz || "") : "",
+      });
+
+      const detailsUpserts = [];
+      if (boatRow) detailsUpserts.push({ material_id: boatRow.id, values: boatValues, updated_by: userId });
+
+      if (hasHuelle && huelleRow) {
+        const huelleValues = normalizeDetailsForCategory("Hüllen", { notiz: huelleNotiz || "" });
+        detailsUpserts.push({ material_id: huelleRow.id, values: huelleValues, updated_by: userId });
+      }
+
+      for (let i = 0; i < rollsitzRows.length; i++) {
+        const values = normalizeDetailsForCategory("Rollsitze", rollsitzPerSeatDetails?.[i] || {});
+        detailsUpserts.push({ material_id: rollsitzRows[i].id, values, updated_by: userId });
+      }
+
+      for (const row of auslegerRows) {
+        const n = (row.name || "").toLowerCase();
+        const match = row.name?.match(/(\d+)\s*$/);
+        const idx = match ? Math.max(0, Number(match[1]) - 1) : 0;
+
+        if (n.includes("skullausleger")) {
+          const base = auslegerSkullPerSeatDetails?.[idx] || {};
+          const values = normalizeDetailsForCategory("Ausleger", { ...base, typ: "skull" });
+          detailsUpserts.push({ material_id: row.id, values, updated_by: userId });
+        } else if (n.includes("riemenausleger")) {
+          const base = auslegerRiemenPerSeatDetails?.[idx] || {};
+          const values = normalizeDetailsForCategory("Ausleger", { ...base, typ: "riemen" });
+          detailsUpserts.push({ material_id: row.id, values, updated_by: userId });
+        } else {
+          detailsUpserts.push({ material_id: row.id, values: {}, updated_by: userId });
+        }
+      }
+
+      if (detailsUpserts.some((d) => d.values && Object.keys(d.values).length > 0)) {
+        const { error: detError } = await supabase.from("material_details").upsert(detailsUpserts, { onConflict: "material_id" });
+        if (detError) console.error("Details upsert Fehler:", detError);
+      }
+
+      const historyRows = (inserted || []).map((r) => ({
+        material_id: r.id,
+        alter_standort: "",
+        neuer_standort: standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      }));
+      await supabase.from("material_history").insert(historyRows);
+
+      setMaterial((prev) => {
+        const next = [...prev, ...(inserted || [])];
+        next.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        return next;
+      });
+
+      setDetailsByMaterialId((prev) => {
+        const next = { ...prev };
+        for (const d of detailsUpserts) next[d.material_id] = d.values || {};
+        return next;
+      });
+    },
+    [isAdmin, showAdmin]
+  );
+
+  // -----------------------------------------------------
+  // ✅ Skulls Satz
+  // -----------------------------------------------------
+  const addSkullsSet = useCallback(
+    async ({ setName, count, standort, sharedDetails, perItemDetails }) => {
+      if (!showAdmin || !isAdmin) return;
+      const userId = await getCurrentUserId();
+
+      const bundle_id = uid();
+      const set_id = uid();
+
+      const n = Math.max(1, Number(count || 1));
+      const rows = Array.from({ length: n }).map((_, i) => ({
+        name: `${setName} ${i + 1}`,
+        kategorie: "Skulls",
+        standort,
+        bundle_id,
+        set_id,
+      }));
+
+      const { data: inserted, error } = await supabase.from("material").insert(rows).select();
+      if (error) {
+        alert("Fehler: " + error.message);
+        return;
+      }
+
+      const shared = normalizeDetailsForCategory("Skulls", sharedDetails || {});
+      const detRows = (inserted || []).map((r, idx) => {
+        const per = normalizeDetailsForCategory("Skulls", perItemDetails?.[idx] || {});
+        const values = { ...shared, ...per };
+        return { material_id: r.id, values, updated_by: userId };
+      });
+
+      if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
+        const { error: detError } = await supabase.from("material_details").upsert(detRows, { onConflict: "material_id" });
+        if (detError) console.error("Details upsert Fehler:", detError);
+      }
+
+      const historyRows = (inserted || []).map((r) => ({
+        material_id: r.id,
+        alter_standort: "",
+        neuer_standort: standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      }));
+      await supabase.from("material_history").insert(historyRows);
+
+      setMaterial((prev) => {
+        const next = [...prev, ...(inserted || [])];
+        next.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        return next;
+      });
+
+      setDetailsByMaterialId((prev) => {
+        const next = { ...prev };
+        for (const d of detRows) next[d.material_id] = d.values || {};
+        return next;
+      });
+    },
+    [isAdmin, showAdmin]
+  );
+
+  // -----------------------------------------------------
+  // ✅ Riemen Satz
+  // -----------------------------------------------------
+  const addRiemenSetPairs = useCallback(
+    async ({ setName, pairsCount, standort, sharedDetails, perPairDetails }) => {
+      if (!showAdmin || !isAdmin) return;
+      const userId = await getCurrentUserId();
+
+      const bundle_id = uid();
+      const set_id = uid();
+
+      const n = Math.max(1, Number(pairsCount || 1));
+      const allRows = [];
+      const pairMeta = [];
+
+      for (let i = 1; i <= n; i++) {
+        const pair_id = uid();
+        pairMeta.push({ pair_id, pairIndex: i - 1 });
+
+        allRows.push(
+          { name: `${setName} ${i} - Backbord`, kategorie: "Riemen", standort, bundle_id, set_id, pair_id, side: "backbord" },
+          { name: `${setName} ${i} - Steuerbord`, kategorie: "Riemen", standort, bundle_id, set_id, pair_id, side: "steuerbord" }
+        );
+      }
+
+      const { data: inserted, error } = await supabase.from("material").insert(allRows).select();
+      if (error) {
+        alert("Fehler: " + error.message);
+        return;
+      }
+
+      const shared = normalizeDetailsForCategory("Riemen", sharedDetails || {});
+      const perByPairId = {};
+      for (const pm of pairMeta) perByPairId[pm.pair_id] = normalizeDetailsForCategory("Riemen", perPairDetails?.[pm.pairIndex] || {});
+
+      const detRows = (inserted || []).map((r) => {
+        const per = perByPairId[r.pair_id] || {};
+        const values = { ...shared, ...per };
+        return { material_id: r.id, values, updated_by: userId };
+      });
+
+      if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
+        const { error: detError } = await supabase.from("material_details").upsert(detRows, { onConflict: "material_id" });
+        if (detError) console.error("Details upsert Fehler:", detError);
+      }
+
+      const historyRows = (inserted || []).map((r) => ({
+        material_id: r.id,
+        alter_standort: "",
+        neuer_standort: standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      }));
+      await supabase.from("material_history").insert(historyRows);
+
+      setMaterial((prev) => {
+        const next = [...prev, ...(inserted || [])];
+        next.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        return next;
+      });
+
+      setDetailsByMaterialId((prev) => {
+        const next = { ...prev };
+        for (const d of detRows) next[d.material_id] = d.values || {};
+        return next;
+      });
+    },
+    [isAdmin, showAdmin]
+  );
+
+  // -----------------------------------------------------
+  // Standort ändern (bulk)
+  // -----------------------------------------------------
+  const updateStandortBulk = useCallback(
+    async (ids, neuerStandort) => {
+      const arr = Array.from(ids || []);
+      if (arr.length === 0) return;
+
+      const userId = await getCurrentUserId();
+
+      const oldMap = {};
+      for (const m of material) oldMap[m.id] = m.standort;
+
+      const { error } = await supabase.from("material").update({ standort: neuerStandort }).in("id", arr);
+      if (error) {
+        alert("Bulk Update fehlgeschlagen: " + error.message);
+        return;
+      }
+
+      const historyRows = arr.map((id) => ({
+        material_id: id,
+        alter_standort: oldMap[id] ?? "",
+        neuer_standort: neuerStandort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      }));
+      await supabase.from("material_history").insert(historyRows);
+
+      setMaterial((prev) => prev.map((m) => (arr.includes(m.id) ? { ...m, standort: neuerStandort } : m)));
+      setSelectedIds(new Set());
+    },
+    [material]
+  );
+
+  // -----------------------------------------------------
+  // Standort ändern (single)
+  // - Boot => Dialog (Checkboxen: Skull/Riemen-Ausleger getrennt + disable)
+  // - Skulls/Riemen => SetDialog
+  // -----------------------------------------------------
+  const updateStandort = useCallback(
+    async (item, neuerStandort) => {
+      if (item.standort === neuerStandort) return;
+
+      // Boot: Dialog
+      if (item.kategorie === "Boote" && item.bundle_id) {
+        const bundleItems = material.filter((m) => m.bundle_id === item.bundle_id);
+
+        const hasSkullAusleger = bundleItems.some((it) => {
+          if (it.kategorie !== "Ausleger") return false;
+          const typ = (detailsByMaterialId?.[it.id]?.typ || "").toLowerCase();
+          const n = (it.name || "").toLowerCase();
+          return typ === "skull" || n.includes("skullausleger");
+        });
+
+        const hasRiemenAusleger = bundleItems.some((it) => {
+          if (it.kategorie !== "Ausleger") return false;
+          const typ = (detailsByMaterialId?.[it.id]?.typ || "").toLowerCase();
+          const n = (it.name || "").toLowerCase();
+          return typ === "riemen" || n.includes("riemenausleger");
+        });
+
+        setMoveBoatDialog({
+          boat: item,
+          newStandort: neuerStandort,
+          move: {
+            skullAusleger: hasSkullAusleger,
+            riemenAusleger: hasRiemenAusleger,
+            rollsitze: true,
+            huellen: true,
+          },
+          availability: {
+            skullAusleger: hasSkullAusleger,
+            riemenAusleger: hasRiemenAusleger,
+          },
+        });
+        return;
+      }
+
+      // Satz-Dialog (Skulls/Riemen) mit Checkbox-Auswahl (wird in MoveSetModal gehandhabt)
+      if ((item.kategorie === "Skulls" || item.kategorie === "Riemen") && item.bundle_id) {
+        const setItems = material.filter((m) => m.bundle_id === item.bundle_id && m.kategorie === item.kategorie);
+        setMoveSetDialog({
+          item,
+          newStandort: neuerStandort,
+          items: setItems,
+          selectedIds: new Set(setItems.map((x) => x.id)),
+        });
+        return;
+      }
+
+      // normal
+      const alterStandort = item.standort;
+      const userId = await getCurrentUserId();
+
+      const { error: updateError } = await supabase.from("material").update({ standort: neuerStandort }).eq("id", item.id);
+      if (updateError) {
+        console.error("Material Update Fehler:", updateError);
+        return;
+      }
+
+      await supabase.from("material_history").insert({
+        material_id: item.id,
+        alter_standort: alterStandort,
+        neuer_standort: neuerStandort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      });
+
+      setMaterial((prev) => prev.map((m) => (m.id === item.id ? { ...m, standort: neuerStandort } : m)));
+    },
+    [material, detailsByMaterialId]
+  );
+
+  // -----------------------------------------------------
+  // Confirm Boot Move (inkl. Kapazitätswarnung)
+  // -----------------------------------------------------
+  const confirmMoveBoat = useCallback(async () => {
+    if (!moveBoatDialog) return;
+
+    const { boat, newStandort, move } = moveBoatDialog;
+    const ids = new Set([boat.id]);
+    const bundleItems = material.filter((m) => m.bundle_id && m.bundle_id === boat.bundle_id);
+
+    for (const it of bundleItems) {
+      if (it.id === boat.id) continue;
+
+      if (it.kategorie === "Rollsitze" && move.rollsitze) ids.add(it.id);
+      if (it.kategorie === "Hüllen" && move.huellen) ids.add(it.id);
+
+      if (it.kategorie === "Ausleger") {
+        const typ = (detailsByMaterialId?.[it.id]?.typ || "").toLowerCase();
+        const n = (it.name || "").toLowerCase();
+
+        const isSkull = typ === "skull" || n.includes("skullausleger");
+        const isRiemen = typ === "riemen" || n.includes("riemenausleger");
+
+        if (isSkull && move.skullAusleger) ids.add(it.id);
+        if (isRiemen && move.riemenAusleger) ids.add(it.id);
+
+        if (!isSkull && !isRiemen) {
+          if (move.skullAusleger && move.riemenAusleger) ids.add(it.id);
+        }
+      }
     }
 
-    fetchMaterial();
-  }
+    const boatSeats = detailsByMaterialId?.[boat.id]?.plaetze;
+    const cap = getBootCapacity(newStandort, boatSeats);
 
-  // STANDORT ÄNDERN (für alle erlaubt)
-  async function updateStandort(item, neuerStandort) {
-    if (item.standort === neuerStandort) return;
+    if (typeof boatSeats === "number" && typeof cap === "number") {
+      const used = material.filter((m) => {
+        if (m.kategorie !== "Boote") return false;
+        if (m.standort !== newStandort) return false;
+        if (m.id === boat.id) return false;
+        const seats = detailsByMaterialId?.[m.id]?.plaetze;
+        return seats === boatSeats;
+      }).length;
 
-    const alterStandort = item.standort;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { error: updateError } = await supabase.from("material").update({ standort: neuerStandort }).eq("id", item.id);
-    if (updateError) {
-      console.error("Material Update Fehler:", updateError);
-      return;
+      if (used >= cap) {
+        setCapacityConfirm({
+          title: "Kein Bootsplatz frei",
+          message: `Am Standort ${newStandort} sind für ${boatSeats}er-Boote ${cap} Plätze vorgesehen (belegt: ${used}). Soll das Boot trotzdem verschoben werden?`,
+          ids,
+          standort: newStandort,
+        });
+        return;
+      }
     }
 
-    const { error: historyError } = await supabase.from("material_history").insert({
-      material_id: item.id,
-      alter_standort: alterStandort,
-      neuer_standort: neuerStandort,
-      geändert_von: user?.id ?? null,
-      geändert_am: new Date().toISOString(),
+    await updateStandortBulk(ids, newStandort);
+    setMoveBoatDialog(null);
+  }, [moveBoatDialog, material, detailsByMaterialId, updateStandortBulk, getBootCapacity]);
+
+  // Für MoveSetDialog: Alle Items des Satzes auflisten (sortiert nach Kategorie + Name)
+  const selectedItemsList = Array.from(selectedIds)
+    .map((id) => material.find((m) => m.id === id))
+    .filter(Boolean);
+
+  // ✅ gruppiert nach Kategorie + sortiert
+  const selectedItemsByCategory = selectedItemsList.reduce((acc, it) => {
+    const cat = it.kategorie || "Unbekannt";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(it);
+    return acc;
+  }, {});
+    Object.keys(selectedItemsByCategory).forEach((cat) => {
+    selectedItemsByCategory[cat].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  });
+  const selectedCategoryOrder = Object.keys(selectedItemsByCategory).sort((a, b) => a.localeCompare(b));
+
+  const bulkSelectedItems = (bulkMoveConfirm?.ids || [])
+  .map((id) => material.find((m) => m.id === id))
+  .filter(Boolean);
+  // Bestätigung Ausgewählte Items verschieben
+  const bulkItemsByCategory = bulkSelectedItems.reduce((acc, it) => {
+    const cat = it.kategorie || "Unbekannt";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(it);
+    return acc;
+  }, {});
+
+  Object.keys(bulkItemsByCategory).forEach((cat) => {
+    bulkItemsByCategory[cat].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  });
+
+  const bulkCategoryOrder = Object.keys(bulkItemsByCategory).sort((a, b) => a.localeCompare(b));
+
+
+  // -----------------------------------------------------
+  // Confirm Set Move
+  // -----------------------------------------------------
+  const confirmMoveSet = useCallback(async () => {
+    if (!moveSetDialog) return;
+    const ids = new Set(Array.from(moveSetDialog.selectedIds || []));
+    if (ids.size === 0) return setMoveSetDialog(null);
+    await updateStandortBulk(ids, moveSetDialog.newStandort);
+    setMoveSetDialog(null);
+  }, [moveSetDialog, updateStandortBulk]);
+
+  // -----------------------------------------------------
+  // Bulk Auswahl
+  // -----------------------------------------------------
+  const toggleSelect = useCallback((id, checked) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
     });
-    if (historyError) console.error("History Fehler:", historyError);
+  }, []);
 
-    fetchMaterial();
-  }
+  const selectSet = useCallback(
+    (set_id) => {
+      if (!set_id) return;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        material.filter((m) => m.set_id === set_id).forEach((m) => next.add(m.id));
+        return next;
+      });
+    },
+    [material]
+  );
 
-  // LÖSCHEN (nur Admin)
-  function openDeleteDialog(item) {
-    if (!showAdmin || !isAdmin) return;
-    setDeleteItem(item);
-  }
+  const selectBundle = useCallback(
+    (bundle_id) => {
+      if (!bundle_id) return;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        material.filter((m) => m.bundle_id === bundle_id).forEach((m) => next.add(m.id));
+        return next;
+      });
+    },
+    [material]
+  );
 
-  async function deleteMaterialConfirmed() {
+  const selectPair = useCallback(
+    (pair_id) => {
+      if (!pair_id) return;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        material.filter((m) => m.pair_id === pair_id).forEach((m) => next.add(m.id));
+        return next;
+      });
+    },
+    [material]
+  );
+
+  // -----------------------------------------------------
+  // LÖSCHEN
+  // -----------------------------------------------------
+  const openDeleteDialog = useCallback(
+    (item) => {
+      if (!showAdmin || !isAdmin) return;
+      setDeleteItem(item);
+    },
+    [isAdmin, showAdmin]
+  );
+
+  const deleteMaterialConfirmed = useCallback(async () => {
     if (!deleteItem || !isAdmin) return;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     const { error } = await supabase.from("material").delete().eq("id", deleteItem.id);
     if (error) {
-      console.error("Material löschen Fehler:", error);
+      alert("Löschen fehlgeschlagen: " + error.message);
       return;
     }
 
-    const { error: historyError } = await supabase.from("material_history").insert({
-      material_id: deleteItem.id,
-      alter_standort: deleteItem.standort,
-      neuer_standort: "GELÖSCHT",
-      geändert_von: user?.id ?? null,
-      geändert_am: new Date().toISOString(),
+    setMaterial((prev) => prev.filter((m) => m.id !== deleteItem.id));
+    setDetailsByMaterialId((prev) => {
+      const copy = { ...prev };
+      delete copy[deleteItem.id];
+      return copy;
     });
-    if (historyError) console.error("Delete-History Fehler:", historyError);
 
     setDeleteItem(null);
-    fetchMaterial();
-  }
+  }, [deleteItem, isAdmin]);
 
-  // LOGIN SCREEN
   if (!session) return <Auth />;
 
-  // APP UI
   return (
     <div className="container">
       <div className="header">
-        <h1>TGSB Material Verwaltung</h1>
-
+        <div className="header-left">
+          <div className="header-logos">
+            <img src={brgLogo} alt="Bonner Rudergesellschaft" className="club-logo" />
+            <img src={srvLogo} alt="Siegburger Ruderverein" className="club-logo" />
+          </div>
+          <h1 className="header-title">TGSB Material Verwaltung</h1>
+        </div>
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {isAdmin && (
-            <button onClick={() => setShowAdmin(!showAdmin)}>{showAdmin ? "Admin verlassen" : "Admin"}</button>
-          )}
-
+          {isAdmin && <button onClick={() => setShowAdmin((s) => !s)}>{showAdmin ? "Admin verlassen" : "Admin"}</button>}
           <button className="logout" onClick={() => supabase.auth.signOut()}>
             Logout
           </button>
+        </div>       
+         <div style={{ fontSize: 12, opacity: 0.8 }}>
+          Online: <strong>{onlineCount}</strong>
         </div>
       </div>
 
-      {/* Admin Panel sichtbar wenn showAdmin */}
-      {isAdmin && showAdmin && <AdminPanel onAddMaterial={addMaterialWithDetails} detailsSchema={detailsSchema} />}
+      {isAdmin && showAdmin && (
+        <AdminPanel addBoatWithSeatItems={addBoatWithSeatItems} addSkullsSet={addSkullsSet} addRiemenSetPairs={addRiemenSetPairs} />
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="card" style={{ position: "sticky", top: 10, zIndex: 5 }}>
+          <h3>Auswahl: {selectedIds.size} Elemente</h3>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ opacity: 0.8 }}>Standort setzen:</span>
+            <select
+              value={bulkTarget}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+
+                setBulkMoveConfirm({
+                  newStandort: v,
+                  ids: Array.from(selectedIds),
+                });
+
+                setBulkTarget(""); // select zurücksetzen
+              }}
+            >
+              <option value="">— wählen —</option>
+              {standorte.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                setSelectedIds(new Set());
+                setShowSelectedList(false);
+              }}
+              style={{ background: "var(--secondary-text)" }}
+            >
+              Auswahl leeren
+            </button>
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            <button
+              onClick={() => setShowSelectedList((s) => !s)}
+              style={{ width: "fit-content" }}
+              title="Auswahl-Liste auf-/zuklappen"
+            >
+              {showSelectedList ? "▼ Auswahl anzeigen" : "▶ Auswahl anzeigen"}
+            </button>
+
+            {showSelectedList && (
+              <div
+                style={{
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 10,
+                  padding: 10,
+                  maxHeight: 260,
+                  overflow: "auto",
+                }}
+              >
+                <div style={{ display: "grid", gap: 12 }}>
+                  {selectedCategoryOrder.map((cat) => {
+                    const list = selectedItemsByCategory[cat] || [];
+                    if (list.length === 0) return null;
+
+                    return (
+                      <div key={cat} style={{ borderTop: "1px solid rgba(255,255,255,0.12)", paddingTop: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                          <div style={{ fontWeight: 700 }}>{cat}</div>
+                          <div style={{ fontSize: 12, opacity: 0.75 }}>{list.length}×</div>
+                        </div>
+
+                        <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, display: "grid", gap: 6 }}>
+                          {list.map((it) => (
+                            <li key={it.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                              <span>
+                                <strong>{it.name}</strong>{" "}
+                                <span style={{ opacity: 0.75, fontSize: 12 }}>
+                                  ({it.standort})
+                                </span>
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  setSelectedIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(it.id);
+                                    return next;
+                                  })
+                                }
+                                style={{ fontSize: 12, padding: "2px 8px", background: "rgba(255,255,255,0.08)" }}
+                                title="Aus Auswahl entfernen"
+                              >
+                                Entfernen
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedItemsList.length === 0 && <div style={{ opacity: 0.7 }}>Keine Auswahl.</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <MaterialList
         material={material}
+        detailsByMaterialId={detailsByMaterialId}
         updateStandort={updateStandort}
         openDeleteDialog={openDeleteDialog}
         setOpenHistoryId={setOpenHistoryId}
         showAdmin={showAdmin && isAdmin}
         loadHistory={loadHistory}
-        onOpenDetails={async (id) => {
-          await loadDetails(id);
-          setOpenDetailsId(id);
-        }}
+        onOpenDetails={(id) => setOpenDetailsId(id)}
+        selectedIds={selectedIds}
+        toggleSelect={toggleSelect}
+        selectSet={selectSet}
+        selectBundle={selectBundle}
+        selectPair={selectPair}
       />
 
-      {/* Verlauf Modal */}
       {openHistoryId && (
         <HistoryModal
           materialName={material.find((m) => m.id === openHistoryId)?.name || "Unbekannt"}
@@ -342,7 +993,6 @@ export default function App() {
         />
       )}
 
-      {/* Details Modal (Änderung für ALLE möglich) */}
       {openDetailsId && (
         <DetailsModal
           item={material.find((m) => m.id === openDetailsId)}
@@ -351,10 +1001,12 @@ export default function App() {
           onClose={() => setOpenDetailsId(null)}
           onSave={(vals) => saveDetails(openDetailsId, vals)}
           canEdit={true}
+          isAdmin={isAdmin}
+          onSaveName={saveItemName}
+          onRenameBundleBaseName={renameBundleBaseName}
         />
       )}
 
-      {/* Delete Modal */}
       {deleteItem && (
         <DeleteModal
           materialName={deleteItem?.name || "Unbekannt"}
@@ -362,488 +1014,92 @@ export default function App() {
           onConfirm={deleteMaterialConfirmed}
         />
       )}
-    </div>
-  );
-}
 
-function Auth() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  async function login() {
-    setErrorMsg("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setErrorMsg("E-Mail-Adresse oder Passwort ist falsch.");
-  }
-
-  return (
-    <div className="login-card">
-      <h2>TGSB Materialverwaltung</h2>
-      <h2>Login</h2>
-
-      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Passwort" value={password} onChange={(e) => setPassword(e.target.value)} />
-
-      <button onClick={login}>Login</button>
-
-      {errorMsg && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "10px",
-            borderRadius: "8px",
-            background: "rgba(255,0,0,0.12)",
-            border: "1px solid rgba(255,0,0,0.25)",
-          }}
-        >
-          {errorMsg}
-        </div>
+      {moveBoatDialog && (
+        <MoveBoatModal
+          boatName={moveBoatDialog.boat?.name || "Boot"}
+          newStandort={moveBoatDialog.newStandort}
+          move={moveBoatDialog.move}
+          disabledSkullAusleger={!moveBoatDialog.availability?.skullAusleger}
+          disabledRiemenAusleger={!moveBoatDialog.availability?.riemenAusleger}
+          onToggle={(key) =>
+            setMoveBoatDialog((prev) => {
+              const avail = prev?.availability || {};
+              if ((key === "skullAusleger" && !avail.skullAusleger) || (key === "riemenAusleger" && !avail.riemenAusleger)) {
+                return prev;
+              }
+              return { ...prev, move: { ...prev.move, [key]: !prev.move[key] } };
+            })
+          }
+          onCancel={() => setMoveBoatDialog(null)}
+          onConfirm={confirmMoveBoat}
+        />
       )}
-    </div>
-  );
-}
 
-function MaterialList({ material, updateStandort, openDeleteDialog, setOpenHistoryId, showAdmin, loadHistory, onOpenDetails }) {
-  const [search, setSearch] = useState("");
-  const [filterKategorie, setFilterKategorie] = useState("Alle");
+      {moveSetDialog && (
+        <MoveSetModal
+          title={`${moveSetDialog.item?.kategorie || "Satz"} verschieben`}
+          itemName={moveSetDialog.item?.name || ""}
+          newStandort={moveSetDialog.newStandort}
+          items={moveSetDialog.items || []}
+          selectedIds={moveSetDialog.selectedIds || new Set()}
+          onToggleId={(id, force) =>
+            setMoveSetDialog((p) => {
+              const next = new Set(p.selectedIds || []);
+              const shouldCheck = typeof force === "boolean" ? force : !next.has(id);
+              if (shouldCheck) next.add(id);
+              else next.delete(id);
+              return { ...p, selectedIds: next };
+            })
+          }
+          onSelectAll={() =>
+            setMoveSetDialog((p) => ({
+              ...p,
+              selectedIds: new Set((p.items || []).map((x) => x.id)),
+            }))
+          }
+          onSelectOnlyThis={() =>
+            setMoveSetDialog((p) => ({
+              ...p,
+              selectedIds: new Set([p.item?.id].filter(Boolean)),
+            }))
+          }
+          onCancel={() => setMoveSetDialog(null)}
+          onConfirm={confirmMoveSet}
+        />
+      )}
 
-  const groupedByStandort = useMemo(() => {
-    const grouped = {};
-    (material || []).forEach((item) => {
-      if (!grouped[item.standort]) grouped[item.standort] = [];
-      grouped[item.standort].push(item);
-    });
-    return grouped;
-  }, [material]);
+      {capacityConfirm && (
+        <CapacityConfirmModal
+          title={capacityConfirm.title}
+          message={capacityConfirm.message}
+          onCancel={() => setCapacityConfirm(null)}
+          onConfirm={async () => {
+            await updateStandortBulk(capacityConfirm.ids, capacityConfirm.standort);
+            setCapacityConfirm(null);
+            setMoveBoatDialog(null);
+          }}
+        />
+      )}
 
-  const tableCategories = ["Boote", "Skulls", "Riemen", "Ausleger", "Sonstiges"];
-
-  return (
-    <div>
-      <div className="card">
-        <h3>Suche & Filter</h3>
-        <input placeholder="🔎 Suche nach Name..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={filterKategorie} onChange={(e) => setFilterKategorie(e.target.value)}>
-          {kategorien.map((k) => (
-            <option key={k}>{k}</option>
-          ))}
-        </select>
-      </div>
-
-      {Object.keys(groupedByStandort).map((standortName) => {
-        const items = groupedByStandort[standortName].filter(
-          (item) =>
-            item.name.toLowerCase().includes(search.toLowerCase()) &&
-            (filterKategorie === "Alle" || item.kategorie === filterKategorie)
-        );
-
-        return (
-          <div key={standortName} className="card">
-            <h2>Standort: {standortName}</h2>
-
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-              {tableCategories.map((cat) => {
-                const catItems = items.filter((i) => i.kategorie === cat);
-
-                return (
-                  <div key={cat} style={{ flex: "1 1 300px" }}>
-                    <h3>{cat}</h3>
-
-                    <table className="material-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Standort</th>
-                          <th>Info</th>
-                          <th>Verlauf</th>
-                          {showAdmin && <th>Löschen</th>}
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {catItems.map((item) => (
-                          <tr key={item.id}>
-                            <td>{item.name}</td>
-
-                            <td>
-                              <select value={item.standort} onChange={(e) => updateStandort(item, e.target.value)}>
-                                {standorte.map((s) => (
-                                  <option key={s}>{s}</option>
-                                ))}
-                              </select>
-                            </td>
-
-                            <td>
-                              <button onClick={() => onOpenDetails(item.id)}>ℹ️</button>
-                            </td>
-
-                            <td>
-                              <button
-                                onClick={async () => {
-                                  await loadHistory(item.id);
-                                  setOpenHistoryId(item.id);
-                                }}
-                              >
-                                Verlauf
-                              </button>
-                            </td>
-
-                            {showAdmin && (
-                              <td>
-                                <button className="delete" onClick={() => openDeleteDialog(item)}>
-                                  Löschen
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-
-                        {catItems.length === 0 && (
-                          <tr>
-                            <td colSpan={showAdmin ? 5 : 4} style={{ opacity: 0.5 }}>
-                              Keine Einträge
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function HistoryModal({ materialName, entries, onClose }) {
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box">
-        <button className="modal-close" onClick={onClose}>
-          ×
-        </button>
-
-        <h3>Verlauf: {materialName}</h3>
-
-        {entries.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>Kein Verlauf vorhanden (oder keine Rechte zum Lesen).</p>
-        ) : (
-          <ul>
-            {entries.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DetailsModal({ item, schema, values, onClose, onSave, canEdit = true }) {
-  const [edit, setEdit] = useState(false);
-  const [local, setLocal] = useState(values || {});
-  const fields = schema[item?.kategorie] || [];
-
-  useEffect(() => setLocal(values || {}), [values]);
-
-  function setField(key, val, type) {
-    if (val === "" || val === null || val === undefined) {
-      const copy = { ...local };
-      delete copy[key];
-      setLocal(copy);
-      return;
-    }
-    if (type === "number") {
-      const num = Number(val);
-      if (Number.isNaN(num)) return;
-      setLocal((prev) => ({ ...prev, [key]: num }));
-      return;
-    }
-    setLocal((prev) => ({ ...prev, [key]: val }));
-  }
-
-  if (!item) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box">
-        <button className="modal-close" onClick={onClose}>
-          ×
-        </button>
-
-        <h3>Info: {item.name}</h3>
-        <p style={{ opacity: 0.8, marginTop: 4 }}>
-          Kategorie: <strong>{item.kategorie}</strong>
-        </p>
-
-        {fields.length === 0 ? (
-          <p style={{ marginTop: 16, opacity: 0.7 }}>Für diese Kategorie sind keine Info-Felder definiert.</p>
-        ) : (
-          <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-            {fields.map((f) => {
-              const current = local?.[f.key];
-              return (
-                <div key={f.key} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <div style={{ width: 180, opacity: 0.9 }}>{f.label}</div>
-
-                  {!edit ? (
-                    <div style={{ flex: 1 }}>
-                      {current === undefined ? (
-                        <span style={{ opacity: 0.6 }}>–</span>
-                      ) : (
-                        <>
-                          {String(current)}
-                          {f.unit ? <span style={{ opacity: 0.7 }}> {f.unit}</span> : null}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ flex: 1 }}>
-                      {f.type === "number" && (
-                        <input
-                          style={{ width: "100%" }}
-                          type="number"
-                          value={current ?? ""}
-                          step={f.step ?? "any"}
-                          min={f.min ?? undefined}
-                          max={f.max ?? undefined}
-                          onChange={(e) => setField(f.key, e.target.value, "number")}
-                        />
-                      )}
-                      {f.type === "text" && (
-                        <input
-                          style={{ width: "100%" }}
-                          type="text"
-                          value={current ?? ""}
-                          placeholder={f.placeholder ?? ""}
-                          onChange={(e) => setField(f.key, e.target.value, "text")}
-                        />
-                      )}
-                      {f.type === "select" && (
-                        <select
-                          style={{ width: "100%" }}
-                          value={current ?? ""}
-                          onChange={(e) => setField(f.key, e.target.value, "select")}
-                        >
-                          {(f.options || [""]).map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt === "" ? "—" : opt}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-          {!edit ? (
-            <>
-              {canEdit && <button onClick={() => setEdit(true)}>Ändern</button>}
-              <button onClick={onClose} style={{ background: "var(--secondary-text)" }}>
-                Schließen
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  setLocal(values || {});
-                  setEdit(false);
-                }}
-                style={{ background: "var(--secondary-text)" }}
-              >
-                Abbrechen
-              </button>
-              <button
-                onClick={async () => {
-                  const ok = await onSave(local);
-                  if (ok) setEdit(false);
-                }}
-              >
-                Speichern
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * ✅ Admin Panel: Material hinzufügen + Kategorie wählen + dynamische Detailfelder
- * (Nur sichtbar für Admin, aber Details bearbeiten später im Info-Modal für alle möglich)
- */
-function AdminPanel({ onAddMaterial, detailsSchema }) {
-  const [name, setName] = useState("");
-  const [kategorie, setKategorie] = useState("Boote");
-  const [standort, setStandort] = useState("BRG");
-  const [details, setDetails] = useState({});
-  const [msg, setMsg] = useState("");
-
-  const fields = detailsSchema[kategorie] || [];
-
-  useEffect(() => {
-    // wenn Kategorie wechselt, alte keys die nicht passen entfernen
-    const allowed = new Set(fields.map((f) => f.key));
-    const cleaned = {};
-    for (const [k, v] of Object.entries(details || {})) {
-      if (allowed.has(k)) cleaned[k] = v;
-    }
-    setDetails(cleaned);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kategorie]);
-
-  function setField(key, val, type) {
-    if (val === "" || val === null || val === undefined) {
-      setDetails((prev) => {
-        const copy = { ...prev };
-        delete copy[key];
-        return copy;
-      });
-      return;
-    }
-    if (type === "number") {
-      const num = Number(val);
-      if (Number.isNaN(num)) return;
-      setDetails((prev) => ({ ...prev, [key]: num }));
-      return;
-    }
-    setDetails((prev) => ({ ...prev, [key]: val }));
-  }
-
-  async function add() {
-    setMsg("");
-    if (!name) {
-      setMsg("Bitte Materialname eingeben.");
-      return;
-    }
-    await onAddMaterial({ name, kategorie, standort, details });
-    setName("");
-    setDetails({});
-    setMsg("Material hinzugefügt.");
-  }
-
-  return (
-    <div className="card">
-      <h3>Admin: Material hinzufügen (mit Infos)</h3>
-
-      <div style={{ display: "grid", gap: 10 }}>
-        <input placeholder="Materialname" value={name} onChange={(e) => setName(e.target.value)} />
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <select value={kategorie} onChange={(e) => setKategorie(e.target.value)}>
-            {kategorien.slice(1).map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </select>
-
-          <select value={standort} onChange={(e) => setStandort(e.target.value)}>
-            {standorte.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Dynamische Detailfelder je Kategorie */}
-        {fields.length > 0 && (
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 10 }}>
-            <h4 style={{ margin: "6px 0 10px" }}>Zusätzliche Infos ({kategorie})</h4>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              {fields.map((f) => {
-                const current = details?.[f.key];
-
-                return (
-                  <div key={f.key} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <div style={{ width: 180, opacity: 0.9 }}>
-                      {f.label}
-                      {f.unit ? <span style={{ opacity: 0.7 }}> ({f.unit})</span> : null}
-                    </div>
-
-                    <div style={{ flex: 1 }}>
-                      {f.type === "number" && (
-                        <input
-                          style={{ width: "100%" }}
-                          type="number"
-                          value={current ?? ""}
-                          step={f.step ?? "any"}
-                          min={f.min ?? undefined}
-                          max={f.max ?? undefined}
-                          onChange={(e) => setField(f.key, e.target.value, "number")}
-                        />
-                      )}
-
-                      {f.type === "text" && (
-                        <input
-                          style={{ width: "100%" }}
-                          type="text"
-                          value={current ?? ""}
-                          placeholder={f.placeholder ?? ""}
-                          onChange={(e) => setField(f.key, e.target.value, "text")}
-                        />
-                      )}
-
-                      {f.type === "select" && (
-                        <select
-                          style={{ width: "100%" }}
-                          value={current ?? ""}
-                          onChange={(e) => setField(f.key, e.target.value, "select")}
-                        >
-                          {(f.options || [""]).map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt === "" ? "—" : opt}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <button onClick={add}>Hinzufügen</button>
-
-        {msg && <div style={{ opacity: 0.85 }}>{msg}</div>}
-      </div>
-    </div>
-  );
-}
-
-function DeleteModal({ materialName, onCancel, onConfirm }) {
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box">
-        <button className="modal-close" onClick={onCancel}>
-          ×
-        </button>
-
-        <h3 style={{ marginBottom: "10px" }}>Wirklich löschen?</h3>
-        <p style={{ marginBottom: "20px" }}>
-          Soll <strong>{materialName}</strong> dauerhaft gelöscht werden?
-        </p>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-          <button onClick={onCancel} style={{ background: "var(--secondary-text)" }}>
-            Abbrechen
-          </button>
-          <button className="delete" onClick={onConfirm}>
-            Löschen
-          </button>
-        </div>
-      </div>
+      {bulkMoveConfirm && (
+        <BulkMoveConfirmModal
+          newStandort={bulkMoveConfirm.newStandort}
+          itemsGrouped={bulkItemsByCategory}
+          categoryOrder={bulkCategoryOrder}
+          totalCount={bulkSelectedItems.length}
+          onCancel={() => setBulkMoveConfirm(null)}
+          onEdit={() => {
+            setBulkMoveConfirm(null);
+            setShowSelectedList(true); // ✅ klappt die Auswahl-Liste auf, damit man entfernen kann
+          }}
+          onConfirm={async () => {
+            await updateStandortBulk(new Set(bulkMoveConfirm.ids), bulkMoveConfirm.newStandort);
+            setBulkMoveConfirm(null);
+            setShowSelectedList(false);
+          }}
+        />
+      )}
     </div>
   );
 }
