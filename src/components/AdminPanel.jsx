@@ -460,8 +460,13 @@ export default function AdminPanel({ addBoatWithSeatItems, addSkullsSet, addRiem
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ width: 180, opacity: 0.9 }}>Gewicht (Text)</div>
+              <div style={{ width: 180, opacity: 0.9 }}>Gewicht </div>
               <input style={{ flex: 1 }} type="text" placeholder="z.B. 80-90" value={boatDetails?.gewicht_kg ?? ""} onChange={(e) => setBoatField("gewicht_kg", e.target.value, "text")} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ width: 180, opacity: 0.9 }}>aktueller Nutzer </div>
+              <input style={{ flex: 1 }} type="text" placeholder="z.B. Max Mustermann" value={boatDetails?.aktueller_nutzer ?? ""} onChange={(e) => setBoatField("aktueller_nutzer", e.target.value, "text")} />
             </div>
 
             {/* Hülle */}

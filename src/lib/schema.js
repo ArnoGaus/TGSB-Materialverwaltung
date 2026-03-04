@@ -24,6 +24,7 @@ export const detailsSchema = {
     { key: "huelle_vorhanden", label: "Hülle vorhanden", type: "bool" },
     { key: "huelle_notiz", label: "Hülle Notiz", type: "text", placeholder: "z.B. passt zu ... / Zustand ..." },
     { key: "steuermann_verfuegbar", label: "mit Steuerplatz", type: "bool" },
+    { key: "aktueller_nutzer", label: "aktueller Nutzer", type: "text", placeholder: "z.B. Max Mustermann" },
   ],
   Skulls: [
     { key: "gesamtlaenge_cm", label: "Gesamtlänge", type: "number", step: 0.1, min: 0, unit: "cm" },

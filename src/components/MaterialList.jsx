@@ -1,4 +1,3 @@
-// src/components/MaterialList.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { kategorien, standorte, BOOT_CAPACITY_BY_STANDORT, normalizeStandortKey } from "../lib/schema";
 import { extractLastNumber, extractPairNumber, sideOrder } from "../lib/sort";
@@ -21,11 +20,19 @@ export default function MaterialList({
   const [search, setSearch] = useState("");
   const [filterKategorie, setFilterKategorie] = useState("Alle");
 
-  // ✅ Ausklapp-Zustände
-  // Standorte sollen standardmäßig eingeklappt sein
+  // ✅ Standorte standardmäßig eingeklappt
   const [openStandorte, setOpenStandorte] = useState(() => new Set());
+  // ✅ Kategorien werden vorbereitet (und sind offen sobald Standort offen ist)
   const [openCategories, setOpenCategories] = useState(() => ({})); // key: `${standort}__${cat}` -> bool
+
+  // ✅ Bundle-Header (Skulls/Riemen/Ausleger/Rollsitze) standardmäßig eingeklappt
   const [openBundles, setOpenBundles] = useState(() => ({})); // key: bundle_id -> bool
+
+  // ✅ Untergruppen innerhalb Ausleger pro Bundle (Skull/Riemen/Sonstige) standardmäßig eingeklappt
+  const [openAuslegerGroups, setOpenAuslegerGroups] = useState(() => ({})); // key: `${bundleId}__skull|riemen|other` -> bool
+
+  // ✅ Rollsitze pro Bundle (ein Block) standardmäßig eingeklappt
+  const [openRollsitzeBundles, setOpenRollsitzeBundles] = useState(() => ({})); // key: bundle_id -> bool
 
   const tableCategories = useMemo(
     () => ["Boote", "Skulls", "Riemen", "Ausleger", "Hüllen", "Rollsitze", "Sonstiges"],
@@ -41,7 +48,6 @@ export default function MaterialList({
     return grouped;
   }, [material]);
 
-  // ✅ Kategorien-Default setzen (Standorte bleiben zu; Kategorien werden "bereit" initialisiert)
   useEffect(() => {
     const standortKeys = Object.keys(groupedByStandort || {});
     if (standortKeys.length === 0) return;
@@ -50,11 +56,27 @@ export default function MaterialList({
       if (Object.keys(prev).length > 0) return prev;
       const next = {};
       for (const s of standortKeys) {
-        for (const c of tableCategories) next[`${s}__${c}`] = true; // Kategorien offen, sobald Standort geöffnet wird
+        for (const c of tableCategories) next[`${s}__${c}`] = true;
       }
       return next;
     });
   }, [groupedByStandort, tableCategories]);
+
+  // ---------------------------------------------
+  // Helper: Ausleger typisieren (Skull / Riemen / other)
+  // ---------------------------------------------
+  const classifyAusleger = useCallback(
+    (item) => {
+      const typ = (detailsByMaterialId?.[item.id]?.typ || "").toLowerCase();
+      const n = (item.name || "").toLowerCase();
+      const isSkull = typ === "skull" || n.includes("skullausleger");
+      const isRiemen = typ === "riemen" || n.includes("riemenausleger");
+      if (isSkull) return "skull";
+      if (isRiemen) return "riemen";
+      return "other";
+    },
+    [detailsByMaterialId]
+  );
 
   // ---------------------------------------------
   // Boot: Name von Boot pro bundle_id (für Zubehör-Hinweis)
@@ -67,37 +89,40 @@ export default function MaterialList({
     return map;
   }, [material]);
 
+  // Boot: Boot-ID pro bundle_id
+  const boatIdByBundleId = useMemo(() => {
+    const map = {};
+    for (const m of material || []) {
+      if (m.kategorie === "Boote" && m.bundle_id) map[m.bundle_id] = m.id;
+    }
+    return map;
+  }, [material]);
+
   // ---------------------------------------------
   // Boot: Ausleger pro bundle_id (Skull/Riemen vorhanden?)
   // ---------------------------------------------
   const auslegerByBundleId = useMemo(() => {
-    // bundle_id -> { skull: boolean, riemen: boolean }
     const map = {};
     for (const it of material || []) {
       if (it.kategorie !== "Ausleger") continue;
       if (!it.bundle_id) continue;
 
       if (!map[it.bundle_id]) map[it.bundle_id] = { skull: false, riemen: false };
-
-      const typ = (detailsByMaterialId?.[it.id]?.typ || "").toLowerCase();
-      const n = (it.name || "").toLowerCase();
-
-      const isSkull = typ === "skull" || n.includes("skullausleger");
-      const isRiemen = typ === "riemen" || n.includes("riemenausleger");
-
-      if (isSkull) map[it.bundle_id].skull = true;
-      if (isRiemen) map[it.bundle_id].riemen = true;
+      const k = classifyAusleger(it);
+      if (k === "skull") map[it.bundle_id].skull = true;
+      if (k === "riemen") map[it.bundle_id].riemen = true;
     }
     return map;
-  }, [material, detailsByMaterialId]);
+  }, [material, classifyAusleger]);
 
   // ---------------------------------------------
-  // Boot: Plätze pro Boot (aus Details)
+  // Boot: Plätze pro Boot (aus Details)  ✅ robust gegen "1" als String
   // ---------------------------------------------
   const getBoatSeats = useCallback(
     (id) => {
       const v = detailsByMaterialId?.[id]?.plaetze;
-      return typeof v === "number" ? v : null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
     },
     [detailsByMaterialId]
   );
@@ -111,7 +136,7 @@ export default function MaterialList({
       if (!boatItem || boatItem.kategorie !== "Boote") return "";
 
       const seats = detailsByMaterialId?.[boatItem.id]?.plaetze;
-      const p = typeof seats === "number" ? seats : null;
+      const p = Number.isFinite(Number(seats)) ? Number(seats) : null;
       if (!p) return "";
 
       const steer = !!detailsByMaterialId?.[boatItem.id]?.steuermann_verfuegbar;
@@ -126,14 +151,13 @@ export default function MaterialList({
       else if (hasRiemen) marker = "-";
 
       const plus = steer ? "+" : "";
-
       return `${p}${marker}${plus}`;
     },
     [detailsByMaterialId, auslegerByBundleId]
   );
 
   // ---------------------------------------------
-  // Suche: auch auf Boot-Badge reagieren
+  // Suche
   // ---------------------------------------------
   const filterFn = useCallback(
     (item) => {
@@ -149,7 +173,7 @@ export default function MaterialList({
   );
 
   // ---------------------------------------------
-  // Bootsplätze/Kapazitäten pro Standort ausrechnen
+  // Bootsplätze/Kapazitäten pro Standort
   // ---------------------------------------------
   const boatOccupancyByStandort = useMemo(() => {
     const result = {};
@@ -157,8 +181,8 @@ export default function MaterialList({
       const boats = (items || []).filter((m) => m.kategorie === "Boote");
       const usedByClass = {};
       for (const b of boats) {
-        const seats = detailsByMaterialId?.[b.id]?.plaetze;
-        if (typeof seats !== "number") continue;
+        const seats = Number(detailsByMaterialId?.[b.id]?.plaetze);
+        if (!Number.isFinite(seats)) continue;
         usedByClass[seats] = (usedByClass[seats] || 0) + 1;
       }
       result[standortName] = usedByClass;
@@ -172,26 +196,13 @@ export default function MaterialList({
   function renderBelongsToBoat(item) {
     const isAccessory = item.kategorie === "Ausleger" || item.kategorie === "Hüllen" || item.kategorie === "Rollsitze";
     if (!isAccessory) return null;
-    if (!item.bundle_id) return <span style={{ fontSize: 12, opacity: 0.65 }}>(kein Boot)</span>;
 
-    const boatName = boatNameByBundleId[item.bundle_id];
-    if (!boatName) return <span style={{ fontSize: 12, opacity: 0.65 }}>(Boot nicht gefunden)</span>;
-
-    return (
-      <span style={{ fontSize: 12, opacity: 0.85 }}>
-        gehört zu:{" "}
-        <button style={{ padding: "2px 6px", fontSize: 12 }} onClick={() => selectBundle(item.bundle_id)} title="Bundle auswählen">
-          {boatName}
-        </button>
-      </span>
-    );
+    // ✅ Zubehör: "gehört zu" nicht mehr anzeigen
+    return null;
   }
 
   function renderAuslegerTyp(item) {
-    if (item.kategorie !== "Ausleger") return null;
-    const typ = detailsByMaterialId?.[item.id]?.typ;
-    if (!typ) return null;
-    return <span style={{ fontSize: 12, opacity: 0.75 }}>({typ})</span>;
+    return null;
   }
 
   function renderNameWithBoatBadge(item) {
@@ -268,6 +279,15 @@ export default function MaterialList({
     setOpenBundles((prev) => ({ ...prev, [bundleId]: !prev[bundleId] }));
   };
 
+  const toggleAuslegerGroupOpen = (bundleId, group) => {
+    const key = `${bundleId}__${group}`;
+    setOpenAuslegerGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const toggleRollsitzeBundleOpen = (bundleId) => {
+    setOpenRollsitzeBundles((prev) => ({ ...prev, [bundleId]: !prev[bundleId] }));
+  };
+
   // ---------------------------------------------
   // Bundle Header Name
   // ---------------------------------------------
@@ -277,6 +297,12 @@ export default function MaterialList({
 
     if (cat === "Skulls") return first.replace(/\s+\d+\s*$/, "").trim() || first;
     if (cat === "Riemen") return first.replace(/\s+\d+\s*-\s*(Backbord|Steuerbord)\s*$/i, "").trim() || first;
+
+    // Ausleger/Rollsitze: lieber Bootsname (falls vorhanden)
+    if (cat === "Ausleger" || cat === "Rollsitze") {
+      const bId = itemsInBundle?.[0]?.bundle_id;
+      if (bId && boatNameByBundleId[bId]) return boatNameByBundleId[bId];
+    }
 
     return first;
   }
@@ -292,6 +318,12 @@ export default function MaterialList({
   }
 
   function renderRow(item) {
+    // ✅ In der ausgeklappten Detail-Ansicht (Rows):
+    // - Kein "Bundle" Button mehr (auch nicht für Skulls/Riemen)
+    // - Kein "Satz" Button mehr (Skulls/Riemen)
+    const showRowBundleButton = false; // komplett aus
+    const showRowSetButton = false; // komplett aus (Satz)
+
     return (
       <tr key={item.id}>
         <td>
@@ -304,13 +336,13 @@ export default function MaterialList({
               {renderNameWithBoatBadge(item)}
               {renderAuslegerTyp(item)}
 
-              {item.bundle_id && (
+              {showRowBundleButton && item.bundle_id && (
                 <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectBundle(item.bundle_id)}>
                   Bundle
                 </button>
               )}
 
-              {item.set_id && (item.kategorie === "Skulls" || item.kategorie === "Riemen") && (
+              {showRowSetButton && item.set_id && (item.kategorie === "Skulls" || item.kategorie === "Riemen") && (
                 <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectSet(item.set_id)}>
                   Satz
                 </button>
@@ -380,40 +412,153 @@ export default function MaterialList({
     });
 
     const rows = [];
+
     for (const bundleKey of bundleKeys) {
       const isRealBundle = !bundleKey.startsWith("__no_bundle__");
       const list = grouped[bundleKey] || [];
-      const isOpen = isRealBundle ? !!openBundles[bundleKey] : true;
 
-      if (isRealBundle) {
+      const isOpen = isRealBundle ? !!openBundles[bundleKey] : true;
+      const isRollsitzeOpen = isRealBundle ? !!openRollsitzeBundles[bundleKey] : true;
+
+      // ---- Ausleger-Sonderlogik vorbereiten ----
+      let auslegerSeats = null;
+      let auslegerHasBothTypes = false;
+
+      if (cat === "Ausleger" && isRealBundle) {
+        const boatId = boatIdByBundleId[bundleKey];
+        auslegerSeats = boatId ? getBoatSeats(boatId) : null;
+
+        const flags = auslegerByBundleId?.[bundleKey] || { skull: false, riemen: false };
+        auslegerHasBothTypes = !!flags.skull && !!flags.riemen;
+      }
+
+      // ---- Rollsitze: Bootplätze vorbereiten ----
+      let rollsitzeSeats = null;
+      if (cat === "Rollsitze" && isRealBundle) {
+        const boatId = boatIdByBundleId[bundleKey];
+        rollsitzeSeats = boatId ? getBoatSeats(boatId) : null;
+      }
+
+      // ✅ Für 1-Sitzer: KEIN Header (Ausleger + Rollsitze)
+      const suppressBundleHeader =
+        isRealBundle &&
+        ((cat === "Ausleger" && auslegerSeats === 1) || (cat === "Rollsitze" && rollsitzeSeats === 1));
+
+      // Header rendern (je nach Kategorie) – aber ggf. unterdrücken
+      if (isRealBundle && !suppressBundleHeader) {
         const count = list.length;
+        const isHeaderOpen = cat === "Rollsitze" ? isRollsitzeOpen : isOpen;
+        const onToggle = cat === "Rollsitze" ? () => toggleRollsitzeBundleOpen(bundleKey) : () => toggleBundleOpen(bundleKey);
+
         rows.push(
-          <tr key={`bundle-header-${bundleKey}`}>
+          <tr key={`bundle-header-${cat}-${bundleKey}`}>
             <td colSpan={showAdmin ? 6 : 5} style={{ background: "rgba(255,255,255,0.04)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 6px", flexWrap: "wrap" }}>
                 <button
-                  onClick={() => toggleBundleOpen(bundleKey)}
+                  onClick={onToggle}
                   style={{ padding: "2px 8px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
                   title="Bundle auf-/zuklappen"
                 >
-                  {isOpen ? "▼" : "▶"}
+                  {isHeaderOpen ? "▼" : "▶"}
                 </button>
 
                 <div style={{ fontWeight: 700, opacity: 0.95 }}>
                   {getBundleDisplayName(cat, list)} — {count} {count === 1 ? "Element" : "Elemente"}
                 </div>
 
-                <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectBundle(bundleKey)} title="Bundle auswählen">
-                  Bundle auswählen
-                </button>
+                {/* ✅ "Bundle auswählen" soll NUR bei Skulls & Riemen in der Überschrift bleiben */}
+                {(cat === "Skulls" || cat === "Riemen") && (
+                  <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectBundle(bundleKey)} title="Bundle auswählen">
+                    Bundle auswählen
+                  </button>
+                )}
               </div>
             </td>
           </tr>
         );
       }
 
-      if (!isOpen) continue;
+      // geschlossen -> skip (ABER: 1-Sitzer ignoriert skip, weil kein Header & immer sichtbar)
+      if (!suppressBundleHeader) {
+        if (cat === "Rollsitze") {
+          if (!isRollsitzeOpen) continue;
+        } else {
+          if (!isOpen) continue;
+        }
+      }
 
+      // ✅ Rollsitze: 1-Sitzer -> direkt sichtbar ohne Header/Ausklappen
+      if (cat === "Rollsitze" && isRealBundle) {
+        for (const it of sortCatItems("Rollsitze", list)) rows.push(renderRow(it));
+        continue;
+      }
+
+      // ✅ Ausleger: Sonderlogik
+      if (cat === "Ausleger" && isRealBundle) {
+        // Fall A: 1 Platz -> flach, ohne Überschriften
+        if (auslegerSeats === 1) {
+          for (const it of sortCatItems("Ausleger", list)) rows.push(renderRow(it));
+          continue;
+        }
+
+        // Fall B: Nur Skull ODER nur Riemen -> keine Unterteilung, ein Ausklappen zeigt alles
+        if (!auslegerHasBothTypes) {
+          for (const it of sortCatItems("Ausleger", list)) rows.push(renderRow(it));
+          continue;
+        }
+
+        // Fall C: Beide Typen -> Untergruppen wie gehabt
+        const skull = [];
+        const riemen = [];
+        const other = [];
+        for (const it of list) {
+          const k = classifyAusleger(it);
+          if (k === "skull") skull.push(it);
+          else if (k === "riemen") riemen.push(it);
+          else other.push(it);
+        }
+
+        const sections = [
+          { key: "skull", label: "Skullausleger", items: skull },
+          { key: "riemen", label: "Riemenausleger", items: riemen },
+          { key: "other", label: "Sonstige Ausleger", items: other },
+        ];
+
+        for (const sec of sections) {
+          if (!sec.items.length) continue;
+
+          const gKey = `${bundleKey}__${sec.key}`;
+          const gOpen = !!openAuslegerGroups[gKey];
+
+          rows.push(
+            <tr key={`ausleger-subheader-${bundleKey}-${sec.key}`}>
+              <td colSpan={showAdmin ? 6 : 5} style={{ background: "rgba(255,255,255,0.02)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 6px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => toggleAuslegerGroupOpen(bundleKey, sec.key)}
+                    style={{ padding: "2px 8px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
+                    title="Gruppe auf-/zuklappen"
+                  >
+                    {gOpen ? "▼" : "▶"}
+                  </button>
+
+                  <div style={{ fontWeight: 600, opacity: 0.9 }}>
+                    {sec.label} — {sec.items.length}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          );
+
+          if (!gOpen) continue;
+
+          for (const it of sortCatItems("Ausleger", sec.items)) rows.push(renderRow(it));
+        }
+
+        continue;
+      }
+
+      // Default: Items rendern
       for (const item of list) rows.push(renderRow(item));
     }
 
@@ -516,7 +661,8 @@ export default function MaterialList({
                           </thead>
 
                           <tbody>
-                            {cat === "Skulls" || cat === "Riemen" ? (
+                            {/* Skulls, Riemen, Ausleger, Rollsitze: je Bundle zusammenfassen & einklappen */}
+                            {cat === "Skulls" || cat === "Riemen" || cat === "Ausleger" || cat === "Rollsitze" ? (
                               catItems.length > 0 ? (
                                 renderBundleRows(catItems, cat)
                               ) : (
@@ -529,7 +675,6 @@ export default function MaterialList({
                             ) : (
                               <>
                                 {sortCatItems(cat, catItems).map((item) => renderRow(item))}
-
                                 {catItems.length === 0 && (
                                   <tr>
                                     <td colSpan={showAdmin ? 6 : 5} style={{ opacity: 0.5 }}>

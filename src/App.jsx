@@ -79,7 +79,6 @@ export default function App() {
   const [openDetailsId, setOpenDetailsId] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState(() => new Set());
-
   const [showSelectedList, setShowSelectedList] = useState(false);
 
   const onlineCount = useOnlineCount(session);
@@ -88,10 +87,11 @@ export default function App() {
   const [moveSetDialog, setMoveSetDialog] = useState(null);
 
   const [bulkMoveConfirm, setBulkMoveConfirm] = useState(null);
-  const [bulkTarget, setBulkTarget] = useState(""); // für das Select (damit es sich zurücksetzt)
+  const [bulkTarget, setBulkTarget] = useState("");
 
-  // ✅ Kapazitäts-Warnmodal
   const [capacityConfirm, setCapacityConfirm] = useState(null);
+
+  const [bulkCapacityConfirm, setBulkCapacityConfirm] = useState(null);
 
   // -----------------------------------------------------
   // MATERIAL + DETAILS (Batch)
@@ -165,6 +165,8 @@ export default function App() {
         setMoveBoatDialog(null);
         setMoveSetDialog(null);
         setCapacityConfirm(null);
+        setBulkMoveConfirm(null);
+        setBulkCapacityConfirm(null);
       }
     });
 
@@ -258,7 +260,7 @@ export default function App() {
 
       for (const it of items) {
         const old = it.name || "";
-        const m = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/); // base + " 1" + " - Backbord"
+        const m = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
         let nextName = base;
         if (m) nextName = `${base}${m[2]}${m[3] || ""}`;
         else nextName = `${base} ${old}`;
@@ -577,8 +579,6 @@ export default function App() {
 
   // -----------------------------------------------------
   // Standort ändern (single)
-  // - Boot => Dialog (Checkboxen: Skull/Riemen-Ausleger getrennt + disable)
-  // - Skulls/Riemen => SetDialog
   // -----------------------------------------------------
   const updateStandort = useCallback(
     async (item, neuerStandort) => {
@@ -619,7 +619,7 @@ export default function App() {
         return;
       }
 
-      // Satz-Dialog (Skulls/Riemen) mit Checkbox-Auswahl (wird in MoveSetModal gehandhabt)
+      // Satz-Dialog (Skulls/Riemen)
       if ((item.kategorie === "Skulls" || item.kategorie === "Riemen") && item.bundle_id) {
         const setItems = material.filter((m) => m.bundle_id === item.bundle_id && m.kategorie === item.kategorie);
         setMoveSetDialog({
@@ -662,6 +662,7 @@ export default function App() {
 
     const { boat, newStandort, move } = moveBoatDialog;
     const ids = new Set([boat.id]);
+
     const bundleItems = material.filter((m) => m.bundle_id && m.bundle_id === boat.bundle_id);
 
     for (const it of bundleItems) {
@@ -713,27 +714,77 @@ export default function App() {
     setMoveBoatDialog(null);
   }, [moveBoatDialog, material, detailsByMaterialId, updateStandortBulk, getBootCapacity]);
 
-  // Für MoveSetDialog: Alle Items des Satzes auflisten (sortiert nach Kategorie + Name)
+  // ✅ BULK Kapazität prüfen (für mehrere Boote)
+  const checkBulkCapacity = useCallback(
+    (idsArray, targetStandort) => {
+      const boatsToMove = (idsArray || [])
+        .map((id) => material.find((m) => m.id === id))
+        .filter((m) => m && m.kategorie === "Boote" && m.standort !== targetStandort);
+
+      if (boatsToMove.length === 0) return null;
+
+      const movingBySeats = {};
+      for (const b of boatsToMove) {
+        const seats = detailsByMaterialId?.[b.id]?.plaetze;
+        if (typeof seats !== "number") continue;
+        movingBySeats[seats] = (movingBySeats[seats] || 0) + 1;
+      }
+
+      const issues = [];
+
+      for (const [seatsStr, countMoving] of Object.entries(movingBySeats)) {
+        const seats = Number(seatsStr);
+        const cap = getBootCapacity(targetStandort, seats);
+        if (typeof cap !== "number") continue;
+
+        const usedNow = material.filter((m) => {
+          if (m.kategorie !== "Boote") return false;
+          if (m.standort !== targetStandort) return false;
+          const s = detailsByMaterialId?.[m.id]?.plaetze;
+          return s === seats;
+        }).length;
+
+        const usedAfter = usedNow + countMoving;
+        if (usedAfter > cap) {
+          issues.push(`${seats}er: ${usedNow} belegt + ${countMoving} rein = ${usedAfter}/${cap}`);
+        }
+      }
+
+      if (issues.length === 0) return null;
+
+      return {
+        title: "Kein Bootsplatz frei",
+        message:
+          `Am Standort ${targetStandort} wird die Kapazität überschritten:\n\n` +
+          issues.map((x) => `• ${x}`).join("\n") +
+          `\n\nTrotzdem verschieben?`,
+      };
+    },
+    [material, detailsByMaterialId, getBootCapacity]
+  );
+
+  // -----------------------------------------------------
+  // Auswahl-Listen für UI (gruppiert)
+  // -----------------------------------------------------
   const selectedItemsList = Array.from(selectedIds)
     .map((id) => material.find((m) => m.id === id))
     .filter(Boolean);
 
-  // ✅ gruppiert nach Kategorie + sortiert
   const selectedItemsByCategory = selectedItemsList.reduce((acc, it) => {
     const cat = it.kategorie || "Unbekannt";
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(it);
     return acc;
   }, {});
-    Object.keys(selectedItemsByCategory).forEach((cat) => {
+
+  Object.keys(selectedItemsByCategory).forEach((cat) => {
     selectedItemsByCategory[cat].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   });
+
   const selectedCategoryOrder = Object.keys(selectedItemsByCategory).sort((a, b) => a.localeCompare(b));
 
-  const bulkSelectedItems = (bulkMoveConfirm?.ids || [])
-  .map((id) => material.find((m) => m.id === id))
-  .filter(Boolean);
-  // Bestätigung Ausgewählte Items verschieben
+  const bulkSelectedItems = (bulkMoveConfirm?.ids || []).map((id) => material.find((m) => m.id === id)).filter(Boolean);
+
   const bulkItemsByCategory = bulkSelectedItems.reduce((acc, it) => {
     const cat = it.kategorie || "Unbekannt";
     if (!acc[cat]) acc[cat] = [];
@@ -746,7 +797,6 @@ export default function App() {
   });
 
   const bulkCategoryOrder = Object.keys(bulkItemsByCategory).sort((a, b) => a.localeCompare(b));
-
 
   // -----------------------------------------------------
   // Confirm Set Move
@@ -849,13 +899,25 @@ export default function App() {
           </div>
           <h1 className="header-title">TGSB Material Verwaltung</h1>
         </div>
+        <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
+          Digitale Bootshalle
+        </button>
+
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {isAdmin && <button onClick={() => setShowAdmin((s) => !s)}>{showAdmin ? "Admin verlassen" : "Admin"}</button>}
+          {isAdmin && (
+            <button
+              className={`admin-toggle ${showAdmin ? "is-on" : ""}`}
+              onClick={() => setShowAdmin((s) => !s)}
+            >
+              {showAdmin ? "Admin verlassen" : "Admin"}
+            </button>
+          )}
           <button className="logout" onClick={() => supabase.auth.signOut()}>
             Logout
           </button>
-        </div>       
-         <div style={{ fontSize: 12, opacity: 0.8 }}>
+        </div>
+
+        <div style={{ fontSize: 12, opacity: 0.8 }}>
           Online: <strong>{onlineCount}</strong>
         </div>
       </div>
@@ -867,8 +929,10 @@ export default function App() {
       {selectedIds.size > 0 && (
         <div className="card" style={{ position: "sticky", top: 10, zIndex: 5 }}>
           <h3>Auswahl: {selectedIds.size} Elemente</h3>
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ opacity: 0.8 }}>Standort setzen:</span>
+
             <select
               value={bulkTarget}
               onChange={(e) => {
@@ -880,7 +944,7 @@ export default function App() {
                   ids: Array.from(selectedIds),
                 });
 
-                setBulkTarget(""); // select zurücksetzen
+                setBulkTarget("");
               }}
             >
               <option value="">— wählen —</option>
@@ -890,6 +954,7 @@ export default function App() {
                 </option>
               ))}
             </select>
+
             <button
               onClick={() => {
                 setSelectedIds(new Set());
@@ -900,12 +965,9 @@ export default function App() {
               Auswahl leeren
             </button>
           </div>
+
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            <button
-              onClick={() => setShowSelectedList((s) => !s)}
-              style={{ width: "fit-content" }}
-              title="Auswahl-Liste auf-/zuklappen"
-            >
+            <button onClick={() => setShowSelectedList((s) => !s)} style={{ width: "fit-content" }} title="Auswahl-Liste auf-/zuklappen">
               {showSelectedList ? "▼ Auswahl anzeigen" : "▶ Auswahl anzeigen"}
             </button>
 
@@ -1007,13 +1069,7 @@ export default function App() {
         />
       )}
 
-      {deleteItem && (
-        <DeleteModal
-          materialName={deleteItem?.name || "Unbekannt"}
-          onCancel={() => setDeleteItem(null)}
-          onConfirm={deleteMaterialConfirmed}
-        />
-      )}
+      {deleteItem && <DeleteModal materialName={deleteItem?.name || "Unbekannt"} onCancel={() => setDeleteItem(null)} onConfirm={deleteMaterialConfirmed} />}
 
       {moveBoatDialog && (
         <MoveBoatModal
@@ -1025,9 +1081,7 @@ export default function App() {
           onToggle={(key) =>
             setMoveBoatDialog((prev) => {
               const avail = prev?.availability || {};
-              if ((key === "skullAusleger" && !avail.skullAusleger) || (key === "riemenAusleger" && !avail.riemenAusleger)) {
-                return prev;
-              }
+              if ((key === "skullAusleger" && !avail.skullAusleger) || (key === "riemenAusleger" && !avail.riemenAusleger)) return prev;
               return { ...prev, move: { ...prev.move, [key]: !prev.move[key] } };
             })
           }
@@ -1052,18 +1106,8 @@ export default function App() {
               return { ...p, selectedIds: next };
             })
           }
-          onSelectAll={() =>
-            setMoveSetDialog((p) => ({
-              ...p,
-              selectedIds: new Set((p.items || []).map((x) => x.id)),
-            }))
-          }
-          onSelectOnlyThis={() =>
-            setMoveSetDialog((p) => ({
-              ...p,
-              selectedIds: new Set([p.item?.id].filter(Boolean)),
-            }))
-          }
+          onSelectAll={() => setMoveSetDialog((p) => ({ ...p, selectedIds: new Set((p.items || []).map((x) => x.id)) }))}
+          onSelectOnlyThis={() => setMoveSetDialog((p) => ({ ...p, selectedIds: new Set([p.item?.id].filter(Boolean)) }))}
           onCancel={() => setMoveSetDialog(null)}
           onConfirm={confirmMoveSet}
         />
@@ -1091,10 +1135,36 @@ export default function App() {
           onCancel={() => setBulkMoveConfirm(null)}
           onEdit={() => {
             setBulkMoveConfirm(null);
-            setShowSelectedList(true); // ✅ klappt die Auswahl-Liste auf, damit man entfernen kann
+            setShowSelectedList(true);
           }}
           onConfirm={async () => {
-            await updateStandortBulk(new Set(bulkMoveConfirm.ids), bulkMoveConfirm.newStandort);
+            const idsArr = bulkMoveConfirm.ids;
+
+            const warn = checkBulkCapacity(idsArr, bulkMoveConfirm.newStandort);
+            if (warn) {
+              setBulkCapacityConfirm({
+                ...warn,
+                ids: idsArr,
+                standort: bulkMoveConfirm.newStandort,
+              });
+              return;
+            }
+
+            await updateStandortBulk(new Set(idsArr), bulkMoveConfirm.newStandort);
+            setBulkMoveConfirm(null);
+            setShowSelectedList(false);
+          }}
+        />
+      )}
+
+      {bulkCapacityConfirm && (
+        <CapacityConfirmModal
+          title={bulkCapacityConfirm.title}
+          message={bulkCapacityConfirm.message}
+          onCancel={() => setBulkCapacityConfirm(null)}
+          onConfirm={async () => {
+            await updateStandortBulk(new Set(bulkCapacityConfirm.ids), bulkCapacityConfirm.standort);
+            setBulkCapacityConfirm(null);
             setBulkMoveConfirm(null);
             setShowSelectedList(false);
           }}
