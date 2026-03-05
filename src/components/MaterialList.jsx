@@ -157,6 +157,33 @@ export default function MaterialList({
   );
 
   // ---------------------------------------------
+  // ✅ Bundle-Auswahl: Boot + alle Materialien im gleichen bundle_id auswählen
+  // ---------------------------------------------
+  const addBundleToSelection = useCallback(
+    (bundleId) => {
+      if (!bundleId) return;
+
+      // alle Items im Bundle finden
+      const ids = (material || [])
+        .filter((m) => m.bundle_id === bundleId)
+        .map((m) => m.id);
+
+      // ✅ auswählen (nur wenn noch nicht ausgewählt)
+      for (const id of ids) {
+        if (!selectedIds?.has?.(id)) {
+          toggleSelect(id, true);
+        }
+      }
+
+      // optional: falls du irgendwo anders "Bundle-Fokus" brauchst
+      if (typeof selectBundle === "function") {
+        selectBundle(bundleId);
+      }
+    },
+    [material, selectedIds, toggleSelect, selectBundle]
+  );
+
+  // ---------------------------------------------
   // Suche
   // ---------------------------------------------
   const filterFn = useCallback(
@@ -318,16 +345,14 @@ export default function MaterialList({
   }
 
   function renderRow(item) {
-    // ✅ In der ausgeklappten Detail-Ansicht (Rows):
-    // - Kein "Bundle" Button mehr (auch nicht für Skulls/Riemen)
-    // - Kein "Satz" Button mehr (Skulls/Riemen)
-    const showRowBundleButton = false; // komplett aus
-    const showRowSetButton = false; // komplett aus (Satz)
-
     return (
       <tr key={item.id}>
         <td>
-          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={(e) => toggleSelect(item.id, e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={selectedIds.has(item.id)}
+            onChange={(e) => toggleSelect(item.id, e.target.checked)}
+          />
         </td>
 
         <td>
@@ -336,15 +361,14 @@ export default function MaterialList({
               {renderNameWithBoatBadge(item)}
               {renderAuslegerTyp(item)}
 
-              {showRowBundleButton && item.bundle_id && (
-                <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectBundle(item.bundle_id)}>
+              {/* ✅ NEU: Neben dem Boot ein "Bundle" Button (wählt Boot + alle Bundle-Materialien aus) */}
+              {item.kategorie === "Boote" && item.bundle_id && (
+                <button
+                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  onClick={() => addBundleToSelection(item.bundle_id)}
+                  title="Boot + gesamtes Bundle auswählen"
+                >
                   Bundle
-                </button>
-              )}
-
-              {showRowSetButton && item.set_id && (item.kategorie === "Skulls" || item.kategorie === "Riemen") && (
-                <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectSet(item.set_id)}>
-                  Satz
                 </button>
               )}
 
@@ -468,7 +492,11 @@ export default function MaterialList({
 
                 {/* ✅ "Bundle auswählen" soll NUR bei Skulls & Riemen in der Überschrift bleiben */}
                 {(cat === "Skulls" || cat === "Riemen") && (
-                  <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => selectBundle(bundleKey)} title="Bundle auswählen">
+                  <button
+                    style={{ padding: "2px 8px", fontSize: 12 }}
+                    onClick={() => selectBundle(bundleKey)}
+                    title="Bundle auswählen"
+                  >
                     Bundle auswählen
                   </button>
                 )}

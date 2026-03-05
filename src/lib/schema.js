@@ -20,11 +20,13 @@ export const RIEMEN_PER_PAIR_KEYS = ["gesamtlaenge_cm", "innenhebel_cm", "defekt
 export const detailsSchema = {
   Boote: [
     { key: "plaetze", label: "Plätze", type: "number", step: 1, min: 1 },
+    { key: "Bootsform", label: "Bootsform", type: "text", placeholder: "z.B. X25" },
     { key: "gewicht_kg", label: "Gewicht", type: "text", placeholder: "z.B. 80-90", unit: "kg" },
     { key: "huelle_vorhanden", label: "Hülle vorhanden", type: "bool" },
     { key: "huelle_notiz", label: "Hülle Notiz", type: "text", placeholder: "z.B. passt zu ... / Zustand ..." },
     { key: "steuermann_verfuegbar", label: "mit Steuerplatz", type: "bool" },
     { key: "aktueller_nutzer", label: "aktueller Nutzer", type: "text", placeholder: "z.B. Max Mustermann" },
+    
   ],
   Skulls: [
     { key: "gesamtlaenge_cm", label: "Gesamtlänge", type: "number", step: 0.1, min: 0, unit: "cm" },

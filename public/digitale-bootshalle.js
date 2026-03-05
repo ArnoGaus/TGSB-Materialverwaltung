@@ -1,30 +1,29 @@
+// public/digitale-bootshalle.js
+// Komplette Datei zum Einfügen (passt zu deiner HTML mit unassignedList/countsList/layoutRoot)
+
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 /** ✅ HIER EINTRAGEN */
 const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
-;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/** ✅ Standorte so wie in material.standort */
-const STANDORTE = [{ id: "SRV", name: "Siegburg (SRV)" }];
+/** ✅ Standort-IDs müssen exakt zu material.standort passen */
+const STANDORTE = [
+  { id: "SRV", name: "Siegburg" },
+  { id: "FUE", name: "Fühlingen" },
+  { id: "BRG", name: "Bonn" },
+];
 
 /** ✅ Tabellen */
 const T_MATERIAL = "material";
 const T_DETAILS = "material_details";
-const T_SLOTS = "digitale_bootshalle_slots"; // Tabelle für digitale Belegung
+const T_SLOTS = "digitale_bootshalle_slots";
 
-/** State */
-let standort = STANDORTE[0]?.id || "SRV";
-let boatsHere = []; // [{id,name,standort,seats}]
-let occupancy = {}; // { [slot_id]: boot_id }
+/** Bonn: X Plätze links UND X Plätze rechts */
+const BONN_X = 10;
 
-let dragBoatId = null;
-let selectedBoatId = null;
-let longPressTimer = null;
-let currentModalSlotId = null;
-
-/** Elements */
+// ---------------- DOM ----------------
 const standortSelect = document.getElementById("standortSelect");
 const statusText = document.getElementById("statusText");
 
@@ -40,7 +39,7 @@ const selectedBox = document.getElementById("selectedBox");
 const selectedBoatName = document.getElementById("selectedBoatName");
 const clearSelectionBtn = document.getElementById("clearSelectionBtn");
 
-// Modal
+// Slot Modal
 const slotModalOverlay = document.getElementById("slotModalOverlay");
 const slotModalClose = document.getElementById("slotModalClose");
 const slotModalClose2 = document.getElementById("slotModalClose2");
@@ -48,175 +47,241 @@ const slotModalSlotId = document.getElementById("slotModalSlotId");
 const slotSearch = document.getElementById("slotSearch");
 const slotResults = document.getElementById("slotResults");
 
-const toastRoot = document.getElementById("toastRoot");
-
+// Error Modal
 const errorOverlay = document.getElementById("errorOverlay");
 const errorTitleEl = document.getElementById("errorTitle");
 const errorMsgEl = document.getElementById("errorMsg");
 const errorCloseBtn = document.getElementById("errorCloseBtn");
 const errorOkBtn = document.getElementById("errorOkBtn");
 
+// ---------------- Error Popup ----------------
 function showError(message, title = "Fehler") {
-  if (!errorOverlay) return;
-
+  if (!errorOverlay) {
+    console.error(title, message);
+    return;
+  }
   errorTitleEl.textContent = title;
   errorMsgEl.textContent = message;
-
   errorOverlay.style.display = "flex";
 }
-
 function hideError() {
   if (!errorOverlay) return;
   errorOverlay.style.display = "none";
 }
-
 errorCloseBtn?.addEventListener("click", hideError);
 errorOkBtn?.addEventListener("click", hideError);
 errorOverlay?.addEventListener("click", (e) => {
   if (e.target === errorOverlay) hideError();
 });
 
-// Anzeige Fehler-Popup
+function collectValidSlotIds(layout) {
+  const set = new Set();
 
-function toast(message, { title = "Hinweis", variant = "warning", timeout = 3200 } = {}) {
-  if (!toastRoot) return;
+  for (const row of layout.rows || []) {
+    for (const col of row.cols || []) {
+      if (Array.isArray(col.sections)) {
+        for (const sec of col.sections) {
+          for (const s of sec.slots || []) set.add(String(s.slotId));
+        }
+      } else {
+        for (const s of col.slots || []) set.add(String(s.slotId));
+      }
+    }
+  }
 
-  const el = document.createElement("div");
-  el.className = `toast is-${variant}`;
-
-  el.innerHTML = `
-    <div class="toast-title">
-      <span>${title}</span>
-      <button class="toast-close" aria-label="Schließen">×</button>
-    </div>
-    <div class="toast-msg">${message}</div>
-    <div class="toast-actions">
-      <button class="secondary">OK</button>
-    </div>
-  `;
-
-  const close = () => {
-    el.style.opacity = "0";
-    el.style.transform = "translateY(-6px)";
-    el.style.transition = "0.14s ease-out";
-    setTimeout(() => el.remove(), 140);
-  };
-
-  el.querySelector(".toast-close").addEventListener("click", close);
-  el.querySelector(".toast-actions button").addEventListener("click", close);
-
-  toastRoot.appendChild(el);
-
-  if (timeout) setTimeout(close, timeout);
+  return set;
 }
 
-/** ===== Layout ===== */
-function splitCount(n) {
-  const left = Math.ceil(n / 2);
-  const right = Math.floor(n / 2);
-  return { left, right };
-}
-function makeLR(prefixSlot, prefixLabel, counts) {
-  return [
-    {
-      sectionId: `${prefixSlot}-left`,
-      title: "Links",
-      slots: Array.from({ length: counts.left }).map((_, i) => ({
-        slotId: `${prefixSlot}-left-${i + 1}`,
-        label: `${prefixLabel}L-${i + 1}`,
-      })),
-    },
-    {
-      sectionId: `${prefixSlot}-right`,
-      title: "Rechts",
-      slots: Array.from({ length: counts.right }).map((_, i) => ({
-        slotId: `${prefixSlot}-right-${i + 1}`,
-        label: `${prefixLabel}R-${i + 1}`,
-      })),
-    },
-  ];
-}
+// ---------------- State ----------------
+let standort = STANDORTE[0]?.id || "SRV";
+let boatsHere = []; // [{id,name,standort,seats}]
+let occupancy = {}; // { [slot_id]: boot_id }
 
-function buildSiegburgLayout({
-  oneHall = 12,
-  twoHall = 10,
-  fourHall = 10,
-  cellarLeft = 8,
-  cellarRight = 8,
-  underHall = 8,
-} = {}) {
-  const one = splitCount(oneHall);
-  const two = splitCount(twoHall);
-  const four = splitCount(fourHall);
+let dragBoatId = null;
+let selectedBoatId = null;
+let longPressTimer = null;
+let currentModalSlotId = null;
 
-  return {
+// ---------------- Layout Config pro Standort ----------------
+/**
+ * Block-Typen (Regeln):
+ * - "halle1" => nur 1er-Boote
+ * - "halle2" => nur 2er-Boote
+ * - "halle4" => nur 4er-Boote
+ * - "bootwagen" => nur 1er-Boote (5 Plätze übereinander)
+ * - "frei" => keine Einschränkung
+ *
+ * split: { left: n, right: n } oder { left: n } oder { right: n }
+ * slots: n (ohne split)
+ */
+const LAYOUTS = {
+  SRV: {
     title: "Digitale Bootshalle – Siegburg",
     rows: [
       {
-        rowId: "top",
         className: "top",
-        cols: [
-          { colId: "halle-1", title: "1er-Halle", sections: makeLR("halle-1", "1H-", one) },
-          { colId: "halle-2", title: "2er-Halle", sections: makeLR("halle-2", "2H-", two) },
-          { colId: "halle-4", title: "4er-Halle", sections: makeLR("halle-4", "4H-", four) },
+        blocks: [
+          { title: "1er-Halle", type: "halle1", split: { left: 6, right: 6 }, slotPrefix: "srv-h1" },
+          { title: "2er-Halle", type: "halle2", split: { left: 5, right: 5 }, slotPrefix: "srv-h2" },
+          { title: "4er-Halle", type: "halle4", split: { left: 5, right: 5 }, slotPrefix: "srv-h4" },
         ],
       },
       {
-        rowId: "bottom",
         className: "bottom",
-        cols: [
-          {
-            colId: "keller",
-            title: "Keller",
-            sections: [
-              {
-                sectionId: "keller-left",
-                title: "Links",
-                slots: Array.from({ length: cellarLeft }).map((_, i) => ({
-                  slotId: `keller-left-${i + 1}`,
-                  label: `KL-${i + 1}`,
-                })),
-              },
-              {
-                sectionId: "keller-right",
-                title: "Rechts",
-                slots: Array.from({ length: cellarRight }).map((_, i) => ({
-                  slotId: `keller-right-${i + 1}`,
-                  label: `KR-${i + 1}`,
-                })),
-              },
-            ],
-          },
-          {
-            colId: "unter-halle",
-            title: "Unter der Halle (unter 4er)",
-            slots: Array.from({ length: underHall }).map((_, i) => ({
-              slotId: `unter-halle-${i + 1}`,
-              label: `U-${i + 1}`,
-            })),
-          },
+        blocks: [
+          { title: "Keller", type: "frei", split: { left: 8, right: 8 }, slotPrefix: "srv-k" },
+          { title: "Unter der Halle (unter 4er)", type: "frei", slots: 8, slotPrefix: "srv-u" },
         ],
       },
     ],
-  };
+  },
+
+  FUE: {
+    title: "Digitale Bootshalle – Fühlingen",
+    rows: [
+      {
+        className: "top",
+        blocks: [
+          { title: "Halle 1", type: "frei", split: { left:0, right: 6 }, slotPrefix: "fue-h1" },
+          { title: "Halle 2", type: "frei", split: { left: 6, right: 0 }, slotPrefix: "fue-h2" },
+          { title: "Bootswagen 1", type: "bootwagen", slots: 5, slotPrefix: "fue-w1" },
+        ],
+      },
+      {
+        className: "top",
+        blocks: [
+          { title: "Bootswagen 2", type: "bootwagen", slots: 5, slotPrefix: "fue-w2" },
+          { title: "Bootswagen 3", type: "bootwagen", slots: 5, slotPrefix: "fue-w3" },
+        ],
+      },
+    ],
+  },
+
+  BRG: {
+    title: "Digitale Bootshalle – Bonn",
+    rows: [
+      {
+        className: "bottom",
+        blocks: [
+          { title: "Halle", type: "frei", split: { left: BONN_X, right: BONN_X }, slotPrefix: "brg-h" },
+          { title: "Kraftraum (2 Plätze)", type: "frei", slots: 2, slotPrefix: "brg-kr" },
+        ],
+      },
+    ],
+  },
+};
+
+function requiredSeatsForType(type) {
+  if (type === "halle1") return 1;
+  if (type === "halle2") return 2;
+  if (type === "halle4") return 4;
+  if (type === "bootwagen") return 1;
+  return null;
+}
+
+function buildLayoutForStandort(standortId) {
+  const cfg = LAYOUTS[standortId];
+  if (!cfg) return { title: `Digitale Bootshalle – ${standortId}`, rows: [], slotRulesByPrefix: [] };
+
+  const slotRulesByPrefix = [];
+
+  const rows = cfg.rows.map((r) => {
+    const cols = r.blocks.map((b) => {
+      const col = { title: b.title, sections: null, slots: null };
+
+      const required = requiredSeatsForType(b.type);
+      const prefixBase = `${b.slotPrefix}-`;
+      if (required) slotRulesByPrefix.push({ prefix: prefixBase, requiredSeats: required });
+
+      if (b.split) {
+        const sections = [];
+
+        if (Number(b.split.left || 0) > 0) {
+          sections.push({
+            title: "Links",
+            slots: Array.from({ length: b.split.left }).map((_, i) => ({
+              slotId: `${prefixBase}L-${i + 1}`,
+              label: `L${i + 1}`,
+            })),
+          });
+        }
+
+        if (Number(b.split.right || 0) > 0) {
+          sections.push({
+            title: "Rechts",
+            slots: Array.from({ length: b.split.right }).map((_, i) => ({
+              slotId: `${prefixBase}R-${i + 1}`,
+              label: `R${i + 1}`,
+            })),
+          });
+        }
+
+        col.sections = sections;
+      } else {
+        const n = Number(b.slots || 0);
+        col.slots = Array.from({ length: n }).map((_, i) => ({
+          slotId: `${prefixBase}${i + 1}`,
+          label: `${i + 1}`,
+        }));
+      }
+
+      return col;
+    });
+
+    return { className: r.className, cols };
+  });
+
+  return { title: cfg.title, rows, slotRulesByPrefix };
 }
 
 function layoutForSite() {
-  return buildSiegburgLayout();
+  return buildLayoutForStandort(standort);
 }
 
-/** ===== Helpers ===== */
+// ---------------- Regeln ----------------
+function requiredSeatsForSlot(slotId) {
+  const s = String(slotId);
+  const { slotRulesByPrefix = [] } = layoutForSite();
+
+  for (const r of slotRulesByPrefix) {
+    if (s.startsWith(r.prefix)) return r.requiredSeats;
+  }
+  return null; // frei
+}
+
+function canPlaceBoatInSlot(boat, slotId) {
+  const req = requiredSeatsForSlot(slotId);
+  if (req === null) return true;
+
+  const seats = Number(boat?.seats);
+  if (!Number.isFinite(seats)) return false;
+  return seats === req;
+}
+
+function rejectReason(boat, slotId) {
+  const req = requiredSeatsForSlot(slotId);
+  if (req === null) return null;
+
+  const seats = Number(boat?.seats);
+  if (!Number.isFinite(seats)) return "Dieses Boot hat keine gültige Sitzplatz-Anzahl und kann hier nicht eingelagert werden.";
+  return `Hier passen nur ${req}er-Boote. Dieses Boot hat ${seats} Plätze.`;
+}
+
+// ---------------- Helpers ----------------
 function boatById(id) {
   const s = String(id);
   return boatsHere.find((b) => String(b.id) === s) || null;
 }
+
 function usedBoatIdsSet() {
   return new Set(Object.values(occupancy).map(String));
 }
+
 function unassignedBoats() {
   const used = usedBoatIdsSet();
   return boatsHere.filter((b) => !used.has(String(b.id)));
 }
+
 function seatBucket(seats) {
   const n = Number(seats);
   if (n === 1) return 1;
@@ -226,38 +291,30 @@ function seatBucket(seats) {
   return null;
 }
 
-function requiredSeatsForSlot(slotId) {
-  const s = String(slotId);
-
-  if (s.startsWith("halle-1-")) return 1;
-  if (s.startsWith("halle-2-")) return 2;
-  if (s.startsWith("halle-4-")) return 4;
-
-  // Keller & Unter der Halle frei
-  return null;
+// ---------------- Rendering (safe) ----------------
+function safeRenderAll(context = "") {
+  try {
+    renderAll();
+  } catch (e) {
+    console.error("Render error", context, e);
+    showError(`Darstellung fehlgeschlagen (${context}).\n\n${e?.message || e}`, "Fehler");
+  }
 }
 
-function canPlaceBoatInSlot(boat, slotId) {
-  const req = requiredSeatsForSlot(slotId);
-  if (req === null) return true; // frei (Keller, Unter der Halle, usw.)
-
-  const seats = Number(boat?.seats);
-  if (!Number.isFinite(seats)) return false; // keine Seats bekannt => nicht in Hallen
-
-  return seats === req;
+function assertDom() {
+  const missing = [];
+  if (!standortSelect) missing.push("standortSelect");
+  if (!unassignedListEl) missing.push("unassignedList");
+  if (!countsListEl) missing.push("countsList");
+  if (!layoutRoot) missing.push("layoutRoot");
+  if (missing.length) {
+    showError(`Fehlende HTML-IDs: ${missing.join(", ")}`, "Fehler");
+    return false;
+  }
+  return true;
 }
 
-function rejectReason(boat, slotId) {
-  const req = requiredSeatsForSlot(slotId);
-  if (req === null) return null;
-
-  const seats = Number(boat?.seats);
-  if (!Number.isFinite(seats)) return `Dieses Boot hat keine Sitzplätze in den Details und kann nicht in die ${req}er-Halle eingelagert werden.`;
-
-  return `In diese Halle passen nur ${req}er-Boote. Dieses Boot hat ${seats} Plätze.`;
-}
-
-/** ===== Load from Supabase ===== */
+// ---------------- Supabase Load ----------------
 async function loadData() {
   statusText.textContent = "Lade Daten…";
 
@@ -274,15 +331,15 @@ async function loadData() {
     statusText.textContent = "Fehler beim Laden der Boote (siehe Konsole).";
     boatsHere = [];
     occupancy = {};
-    renderAll();
+    safeRenderAll("loadData boatsErr");
     return;
   }
 
   const boatRows = boats || [];
   const boatIds = boatRows.map((b) => b.id);
 
-  // 2) Details holen (material_details.values -> plaetze)
-  const seatsMap = new Map(); // bootId -> seats
+  // 2) Details (values.plaetze)
+  const seatsMap = new Map();
   if (boatIds.length) {
     const { data: details, error: detErr } = await supabase
       .from(T_DETAILS)
@@ -295,7 +352,7 @@ async function loadData() {
       (details || []).forEach((r) => {
         const bid = r.material_id;
         const v = r.values || {};
-        const seats = v?.plaetze; // ✅ hier ist dein Feld
+        const seats = v?.plaetze;
         if (bid && seats !== undefined && seats !== null) seatsMap.set(String(bid), seats);
       });
     }
@@ -306,7 +363,7 @@ async function loadData() {
     seats: seatsMap.get(String(b.id)) ?? null,
   }));
 
-  // 3) Slot-Belegung laden
+  // 3) Belegung
   const { data: slots, error: slotsErr } = await supabase
     .from(T_SLOTS)
     .select("standort,slot_id,boot_id")
@@ -316,21 +373,44 @@ async function loadData() {
     console.error(slotsErr);
     statusText.textContent = "Fehler beim Laden der Belegung (siehe Konsole).";
     occupancy = {};
-    renderAll();
+    safeRenderAll("loadData slotsErr");
     return;
   }
 
-  const nextOcc = {};
-  (slots || []).forEach((r) => {
-    nextOcc[String(r.slot_id)] = String(r.boot_id);
-  });
-  occupancy = nextOcc;
+  const rawOcc = {};
+    (slots || []).forEach((r) => {
+    rawOcc[String(r.slot_id)] = String(r.boot_id);
+    });
 
+    // ✅ NUR gültige Slots aus dem aktuellen Layout behalten
+    const layout = layoutForSite();
+    const validSlots = collectValidSlotIds(layout);
+
+    const nextOcc = {};
+    let ignored = 0;
+
+    for (const [slotId, bootId] of Object.entries(rawOcc)) {
+    if (validSlots.has(slotId)) {
+        nextOcc[slotId] = bootId;
+    } else {
+        ignored++;
+    }
+    }
+
+occupancy = nextOcc;
+
+// Optional: Hinweis oben
+if (ignored > 0) {
+  statusText.textContent = `Geladen: ${boatsHere.length} Boote (⚠ ${ignored} alte Zuordnungen ignoriert)`;
+} else {
   statusText.textContent = `Geladen: ${boatsHere.length} Boote`;
-  renderAll();
 }
 
-/** ===== Save assignment ===== */
+  statusText.textContent = `Geladen: ${boatsHere.length} Boote`;
+  safeRenderAll("loadData done");
+}
+
+// ---------------- Save / Clear ----------------
 async function assignBoatToSlot(bootId, slotId) {
   if (!bootId || !slotId) return false;
 
@@ -343,13 +423,12 @@ async function assignBoatToSlot(bootId, slotId) {
     return false;
   }
 
-  // ✅ HIER: harter Stop, bevor irgendwas gespeichert wird
+  // ✅ harte Prüfung vor DB-Write
   if (!canPlaceBoatInSlot(boat, sId)) {
     showError(rejectReason(boat, sId) || "Dieses Boot passt nicht in diesen Slot.", "Passt nicht");
-    return false; // ✅ verhindert Speichern sicher
+    return false;
   }
 
-  // Boot vorher entfernen (ein Boot nur einmal pro Standort)
   const delRes = await supabase.from(T_SLOTS).delete().eq("standort", standort).eq("boot_id", bId);
   if (delRes.error) {
     console.error(delRes.error);
@@ -357,7 +436,6 @@ async function assignBoatToSlot(bootId, slotId) {
     return false;
   }
 
-  // Slot upsert
   const upRes = await supabase
     .from(T_SLOTS)
     .upsert({ standort, slot_id: sId, boot_id: bId }, { onConflict: "standort,slot_id" });
@@ -368,7 +446,6 @@ async function assignBoatToSlot(bootId, slotId) {
     return false;
   }
 
-  // local mirror
   for (const [k, v] of Object.entries(occupancy)) {
     if (String(v) === bId) delete occupancy[k];
   }
@@ -376,34 +453,32 @@ async function assignBoatToSlot(bootId, slotId) {
 
   selectedBoatId = null;
   updateSelectedUI();
-  renderAll();
+  safeRenderAll("assignBoatToSlot");
   return true;
 }
 
 async function clearSlot(slotId) {
   const sId = String(slotId);
-  const { error } = await supabase
-    .from(T_SLOTS)
-    .delete()
-    .eq("standort", standort)
-    .eq("slot_id", sId);
+  const { error } = await supabase.from(T_SLOTS).delete().eq("standort", standort).eq("slot_id", sId);
 
   if (error) {
     console.error(error);
-    alert("Entfernen fehlgeschlagen (siehe Konsole).");
-    return;
+    showError("Entfernen fehlgeschlagen. Siehe Konsole.", "Fehler");
+    return false;
   }
+
   delete occupancy[sId];
-  renderAll();
+  safeRenderAll("clearSlot");
+  return true;
 }
 
-/** ===== Mobile Long-Press ===== */
+// ---------------- Mobile Long-Press ----------------
 function onBoatPointerDown(bootId) {
   clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
     selectedBoatId = String(bootId);
     updateSelectedUI();
-    renderAll();
+    safeRenderAll("longPress");
   }, 450);
 }
 function onBoatPointerUp() {
@@ -413,7 +488,7 @@ function onBoatPointerUp() {
 function updateSelectedUI() {
   if (selectedBoatId) {
     const b = boatById(selectedBoatId);
-    selectedBoatName.textContent = b ? `${b.name} (${b.id})` : selectedBoatId;
+    selectedBoatName.textContent = b ? `${b.name}` : selectedBoatId;
     selectedBox.style.display = "flex";
   } else {
     selectedBox.style.display = "none";
@@ -423,10 +498,10 @@ function updateSelectedUI() {
 clearSelectionBtn?.addEventListener("click", () => {
   selectedBoatId = null;
   updateSelectedUI();
-  renderUnassigned();
+  safeRenderAll("clearSelection");
 });
 
-/** ===== LEFT: Unassigned ===== */
+// ---------------- LEFT Render ----------------
 function renderUnassigned() {
   const list = unassignedBoats();
   unassignedListEl.innerHTML = "";
@@ -439,7 +514,7 @@ function renderUnassigned() {
     chip.innerHTML = `
       <div style="font-weight:700;">${b.name}</div>
       <div style="font-size:12px; opacity:0.75;">
-        ${b.id} · ${b.seats ? `${b.seats} Plätze` : "Plätze ?"}
+        ${b.seats ? `${b.seats} Plätze` : "Plätze ?"}
       </div>
     `;
 
@@ -454,7 +529,6 @@ function renderUnassigned() {
   });
 }
 
-/** ===== LEFT: Counts by seats (1/2/4/8) ===== */
 function renderCounts() {
   const buckets = new Map([
     [1, 0],
@@ -480,9 +554,7 @@ function renderCounts() {
     const count = buckets.get(k) || 0;
     if (count === 0 && k !== "unbekannt") return;
 
-    const label =
-      k === "unbekannt" ? "Unbekannt (keine Plätze in Details)" : `${k}er-Boote`;
-
+    const label = k === "unbekannt" ? "Unbekannt (keine Plätze in Details)" : `${k}er-Boote`;
     const row = document.createElement("div");
     row.className = "count-item";
     row.innerHTML = `
@@ -493,7 +565,7 @@ function renderCounts() {
   });
 }
 
-/** ===== Modal ===== */
+// ---------------- Slot Modal ----------------
 function openSlotModal(slotId) {
   currentModalSlotId = String(slotId);
   slotModalSlotId.textContent = currentModalSlotId;
@@ -506,6 +578,7 @@ function closeSlotModal() {
   slotModalOverlay.style.display = "none";
   currentModalSlotId = null;
 }
+
 slotModalClose?.addEventListener("click", closeSlotModal);
 slotModalClose2?.addEventListener("click", closeSlotModal);
 slotModalOverlay?.addEventListener("click", (e) => {
@@ -516,14 +589,12 @@ slotSearch?.addEventListener("input", renderSlotModalResults);
 function renderSlotModalResults() {
   const q = slotSearch.value.trim().toLowerCase();
 
-const list = unassignedBoats()
-  // ✅ wenn Slot eine Halle ist, nur passende Boote anzeigen
-  .filter((b) => canPlaceBoatInSlot(b, currentModalSlotId))
-  // ✅ Suchfilter
-  .filter((b) => {
-    if (!q) return true;
-    return String(b.name || "").toLowerCase().includes(q) || String(b.id).toLowerCase().includes(q);
-  });
+  const list = unassignedBoats()
+    .filter((b) => canPlaceBoatInSlot(b, currentModalSlotId))
+    .filter((b) => {
+      if (!q) return true;
+      return String(b.name || "").toLowerCase().includes(q) || String(b.id).toLowerCase().includes(q);
+    });
 
   slotResults.innerHTML = "";
 
@@ -539,40 +610,36 @@ const list = unassignedBoats()
     const btn = document.createElement("button");
     btn.className = "admin-btn";
     btn.style.textAlign = "left";
-    btn.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${b.id})</span>`;
+    btn.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${b.seats ? `${b.seats} Plätze` : "Plätze ?"})</span>`;
     btn.addEventListener("click", async () => {
-      await assignBoatToSlot(b.id, currentModalSlotId);
-      closeSlotModal();
+      const ok = await assignBoatToSlot(b.id, currentModalSlotId);
+      if (ok) closeSlotModal();
     });
     slotResults.appendChild(btn);
   });
 }
 
-/** ===== Slots ===== */
+// ---------------- Slots / Lager ----------------
 function buildSlotElement(slotId, label) {
   const sId = String(slotId);
   const bootId = occupancy[sId];
   const boat = bootId ? boatById(bootId) : null;
 
-  // Regel-Infos
-  const req = requiredSeatsForSlot(sId); // 1/2/4 oder null
+  const req = requiredSeatsForSlot(sId);
   const selectedBoat = selectedBoatId ? boatById(selectedBoatId) : null;
 
   const isRestricted = req !== null;
-  const isBlocked =
-    selectedBoat && isRestricted && !canPlaceBoatInSlot(selectedBoat, sId);
+  const isBlocked = selectedBoat && isRestricted && !canPlaceBoatInSlot(selectedBoat, sId);
 
   const slot = document.createElement("div");
   slot.className = `lager-slot ${boat ? "is-full" : "is-empty"} ${isRestricted ? "is-restricted" : ""} ${isBlocked ? "is-blocked" : ""}`;
 
-  // Desktop Drag & Drop
   slot.addEventListener("dragover", (e) => e.preventDefault());
   slot.addEventListener("drop", async () => {
     if (!dragBoatId) return;
     await assignBoatToSlot(dragBoatId, sId);
   });
 
-  // Click: Mobile selected => assign; else open modal
   slot.addEventListener("click", async () => {
     if (selectedBoatId) {
       await assignBoatToSlot(selectedBoatId, sId);
@@ -581,16 +648,13 @@ function buildSlotElement(slotId, label) {
     openSlotModal(sId);
   });
 
-  const badgeHtml = req
-    ? `<span class="rule-badge">nur ${req}er</span>`
-    : "";
+  const badgeHtml = req ? `<span class="rule-badge">nur ${req}er</span>` : "";
 
   slot.innerHTML = `
     <div class="lager-slot-head">
       <strong>${label}</strong>
       <div style="display:flex; gap:8px; align-items:center;">
         ${badgeHtml}
-        <span style="font-size:12px; opacity:0.75;">${sId}</span>
       </div>
     </div>
     ${
@@ -715,7 +779,7 @@ function renderAll() {
   renderLayout();
 }
 
-/** Standort init */
+// ---------------- Standort Dropdown ----------------
 function initStandorte() {
   standortSelect.innerHTML = "";
   STANDORTE.forEach((s) => {
@@ -734,7 +798,11 @@ function initStandorte() {
   });
 }
 
-/** Bootstrapping */
+// ---------------- Bootstrapping ----------------
 initStandorte();
 updateSelectedUI();
-await loadData();
+
+if (assertDom()) {
+  await loadData();
+  safeRenderAll("boot");
+}
