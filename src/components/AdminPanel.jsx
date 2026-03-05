@@ -28,6 +28,7 @@ export default function AdminPanel({ addBoatWithSeatItems, addSkullsSet, addRiem
   const shoes = Array.isArray(boatDetails?.schuhe) ? boatDetails.schuhe : [];
   const [hasSteuerplatz, setHasSteuerplatz] = useState(false);
   const [rollsitzPerSeat, setRollsitzPerSeat] = useState([]);
+  const [isDefekt, setIsDefekt] = useState(false);
 
   const [createSkullAusleger, setCreateSkullAusleger] = useState(true);
   const [createRiemenAusleger, setCreateRiemenAusleger] = useState(false);
@@ -239,6 +240,7 @@ export default function AdminPanel({ addBoatWithSeatItems, addSkullsSet, addRiem
       setHuelleName("");
       setHuelleNotiz("");
       setHasSteuerplatz(false);
+      setIsDefekt(false);
       setMsg("Boot + Zubehör angelegt.");
       return;
     }
@@ -501,11 +503,20 @@ export default function AdminPanel({ addBoatWithSeatItems, addSkullsSet, addRiem
             </div>
               {/* Steuerplatz */}
             <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 10, display: "grid", gap: 8 }}>
-              <h4 style={{ margin: 0 }}>Hülle</h4>
+              <h4 style={{ margin: 0 }}>Steuerplatz</h4>
 
               <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input type="checkbox" checked={hasSteuerplatz} onChange={(e) => setHasSteuerplatz(e.target.checked)} />
                 Steuerplatz vorhanden
+              </label>
+            </div>
+
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 10, display: "grid", gap: 8 }}>
+              <h4 style={{ margin: 0 }}>Defekt</h4>
+
+              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <input type="checkbox" checked={isDefekt} onChange={(e) => setIsDefekt(e.target.checked)} />
+                Defekt
               </label>
             </div>
 

@@ -122,8 +122,8 @@ const LAYOUTS = {
         className: "top",
         blocks: [
           { title: "1er-Halle", type: "halle1", split: { left: 6, right: 6 }, slotPrefix: "srv-h1" },
-          { title: "2er-Halle", type: "halle2", split: { left: 5, right: 5 }, slotPrefix: "srv-h2" },
-          { title: "4er-Halle", type: "halle4", split: { left: 5, right: 5 }, slotPrefix: "srv-h4" },
+          { title: "2er-Halle", type: "halle2", split: { left: 6, right: 5 }, slotPrefix: "srv-h2" },
+          { title: "4er-Halle", type: "halle4", split: { left: 5, right: 6 }, slotPrefix: "srv-h4" },
         ],
       },
       {
