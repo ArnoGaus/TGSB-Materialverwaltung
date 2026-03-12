@@ -479,44 +479,93 @@ export default function App() {
   const addRiemenSetPairs = useCallback(
     async ({ setName, pairsCount, standort, sharedDetails, perPairDetails }) => {
       if (!showAdmin || !isAdmin) return;
+
       const userId = await getCurrentUserId();
-
-      const bundle_id = uid();
-      const set_id = uid();
-
       const n = Math.max(1, Number(pairsCount || 1));
+
+      const bundle_id = n > 1 ? uid() : null;
+      const set_id = n > 1 ? uid() : null;
+
       const allRows = [];
-      const pairMeta = [];
 
       for (let i = 1; i <= n; i++) {
-        const pair_id = uid();
-        pairMeta.push({ pair_id, pairIndex: i - 1 });
-
-        allRows.push(
-          { name: `${setName} ${i} - Backbord`, kategorie: "Riemen", standort, bundle_id, set_id, pair_id, side: "backbord" },
-          { name: `${setName} ${i} - Steuerbord`, kategorie: "Riemen", standort, bundle_id, set_id, pair_id, side: "steuerbord" }
-        );
+        allRows.push({
+          name: n > 1 ? `${setName} ${i}` : setName,
+          kategorie: "Riemen",
+          standort,
+          bundle_id,
+          set_id,
+        });
       }
 
-      const { data: inserted, error } = await supabase.from("material").insert(allRows).select();
+      const { data: inserted, error } = await supabase
+        .from("material")
+        .insert(allRows)
+        .select();
+
       if (error) {
         alert("Fehler: " + error.message);
         return;
       }
 
       const shared = normalizeDetailsForCategory("Riemen", sharedDetails || {});
-      const perByPairId = {};
-      for (const pm of pairMeta) perByPairId[pm.pair_id] = normalizeDetailsForCategory("Riemen", perPairDetails?.[pm.pairIndex] || {});
 
-      const detRows = (inserted || []).map((r) => {
-        const per = perByPairId[r.pair_id] || {};
-        const values = { ...shared, ...per };
-        return { material_id: r.id, values, updated_by: userId };
+      const detRows = (inserted || []).map((r, idx) => {
+        const rawPer = perPairDetails?.[idx] || {};
+        const unterschiedlicheSeiten = !!rawPer.unterschiedliche_seiten;
+
+        const meta = {};
+        Object.entries(rawPer).forEach(([key, value]) => {
+          if (
+            key === "unterschiedliche_seiten" ||
+            key === "backbord" ||
+            key === "steuerbord"
+          ) {
+            return;
+          }
+          if (value !== "" && value !== null && value !== undefined) {
+            meta[key] = value;
+          }
+        });
+
+        const cleanSide = (sideObj = {}) => {
+          const out = {};
+          Object.entries(sideObj).forEach(([key, value]) => {
+            if (value !== "" && value !== null && value !== undefined) {
+              out[key] = value;
+            }
+          });
+          return out;
+        };
+
+        const backbord = cleanSide(rawPer?.backbord || {});
+        const steuerbord = cleanSide(
+          unterschiedlicheSeiten ? rawPer?.steuerbord || {} : rawPer?.backbord || {}
+        );
+
+        const values = normalizeDetailsForCategory("Riemen", {
+          ...shared,
+          ...meta,
+          unterschiedliche_seiten: unterschiedlicheSeiten,
+          backbord,
+          steuerbord,
+        });
+
+        return {
+          material_id: r.id,
+          values,
+          updated_by: userId,
+        };
       });
 
       if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
-        const { error: detError } = await supabase.from("material_details").upsert(detRows, { onConflict: "material_id" });
-        if (detError) console.error("Details upsert Fehler:", detError);
+        const { error: detError } = await supabase
+          .from("material_details")
+          .upsert(detRows, { onConflict: "material_id" });
+
+        if (detError) {
+          console.error("Details upsert Fehler:", detError);
+        }
       }
 
       const historyRows = (inserted || []).map((r) => ({
@@ -526,6 +575,7 @@ export default function App() {
         geändert_von: userId,
         geändert_am: new Date().toISOString(),
       }));
+
       await supabase.from("material_history").insert(historyRows);
 
       setMaterial((prev) => {
@@ -542,7 +592,6 @@ export default function App() {
     },
     [isAdmin, showAdmin]
   );
-
   // -----------------------------------------------------
   // Standort ändern (bulk)
   // -----------------------------------------------------
@@ -899,9 +948,20 @@ export default function App() {
           </div>
           <h1 className="header-title">TGSB Material Verwaltung</h1>
         </div>
-        <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
-          Digitale Bootshalle
-        </button>
+        < div style= {{ display : "flex", gap: "10px", flexDirection: "column", alignItems: "flex-end" }}>
+          {isAdmin && (
+            <button
+              onClick={() => window.open("/statistik.html", "_blank", "noopener,noreferrer")}>
+              Statistik
+            </button>
+          )}
+        <div>
+          
+        </div>
+          <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
+            Digitale Bootshalle
+          </button>
+        </div>
 
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           {isAdmin && (

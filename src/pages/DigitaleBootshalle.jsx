@@ -1,11 +1,4 @@
-import { useMemo, useRef, useState } from "react";
-
-/**
- * Digitale Bootshalle (Demo)
- * - Desktop: Drag & Drop
- * - Mobile: Long-Press select + tap target
- * - Lagerplatz: click => dropdown + search => add boat
- */
+/*import { useMemo, useRef, useState } from "react";
 
 const STANDORTE = [
   { id: "sbg", name: "Siegburg" },
@@ -17,31 +10,6 @@ function uid(prefix = "id") {
   return `${prefix}-${Math.random().toString(16).slice(2)}-${Date.now().toString(16)}`;
 }
 
-/** Demo-Boote pro Standort */
-const INITIAL_BOATS = {
-  sbg: [
-    { id: "b-1001", name: "Boot 1001" },
-    { id: "b-1002", name: "Boot 1002" },
-    { id: "b-1003", name: "Boot 1003" },
-    { id: "b-2001", name: "Boot 2001" },
-    { id: "b-3001", name: "Boot 3001" },
-  ],
-  koeln: [
-    { id: "k-1", name: "Köln 1" },
-    { id: "k-2", name: "Köln 2" },
-  ],
-  bonn: [{ id: "bn-1", name: "Bonn 1" }],
-};
-
-/**
- * Siegburg Struktur:
- * - Regalhalle: links X übereinander, rechts Y übereinander
- * - 2er-Halle: Plätze 1..N (Demo: 10)
- * - 4er-Halle: Plätze 1..N (Demo: 10)
- * - Keller: links, rechts, unter-4er (je Demo: 8)
- *
- * Du kannst X/Y und die Counts später aus Config/DB ziehen.
- */
 function buildSiegburgLayout({ xLeft = 12, yRight = 12, twoHall = 10, fourHall = 10, cellarLeft = 8, cellarRight = 8, cellarUnder4 = 8 }) {
   return [
     {
@@ -265,7 +233,7 @@ export default function DigitaleBootshalle() {
       </div>
 
       <div className="bootshalle-grid">
-        {/* Linke Seite: Bootliste */}
+        {/* Linke Seite: Bootliste */}/*
         <div className="bootshalle-panel">
           <div className="bootshalle-panel-title">Boote am Standort</div>
 
@@ -293,7 +261,7 @@ export default function DigitaleBootshalle() {
           )}
         </div>
 
-        {/* Rechte Seite: Lager-Layout */}
+        {/* Rechte Seite: Lager-Layout */}/*
         <div className="bootshalle-panel">
           <div className="bootshalle-panel-title">Lager</div>
 
@@ -384,7 +352,7 @@ export default function DigitaleBootshalle() {
         </div>
       </div>
 
-      {/* Slot Picker Modal */}
+      {/* Slot Picker Modal */}/*
       {slotPicker?.open ? (
         <div className="modal-overlay" onClick={() => setSlotPicker(null)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>

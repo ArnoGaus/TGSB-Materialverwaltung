@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Material-Tracker – Statistik</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg: #08111f;
+      --bg-soft: #0d1728;
+      --card: #101c31;
+      --card-2: #14233d;
+      --border: rgba(255,255,255,0.08);
+      --text: #eef4ff;
+      --muted: #9db2d1;
+
+      --blue: #63a4ff;
+      --cyan: #56e0ff;
+      --green: #48d597;
+      --lime: #95e66a;
+      --yellow: #ffd166;
+      --orange: #ff9f5a;
+      --red: #ff7b7b;
+      --pink: #ff76c8;
+      --violet: #9d7bff;
+
+      --shadow: 0 18px 40px rgba(0,0,0,0.28);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(99,164,255,0.16), transparent 25%),
+        radial-gradient(circle at top right, rgba(72,213,151,0.10), transparent 22%),
+        radial-gradient(circle at bottom center, rgba(157,123,255,0.08), transparent 26%),
+        var(--bg);
+    }
+
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      background: linear-gradient(180deg, rgba(16,28,49,0.98), rgba(8,17,31,0.98));
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 900px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button, select {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: rgba(255,255,255,0.10);
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .status.info {
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .status.error {
+      color: #ffd8d8;
+      background: rgba(255,123,123,0.12);
+      border: 1px solid rgba(255,123,123,0.28);
+    }
+
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--card), var(--card-2));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .kpi {
+      position: relative;
+      overflow: hidden;
+      min-height: 138px;
+    }
+
+    .kpi::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -30px auto;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      opacity: 0.18;
+      filter: blur(8px);
+    }
+
+    .kpi.blue::after { background: var(--blue); }
+    .kpi.green::after { background: var(--green); }
+    .kpi.orange::after { background: var(--orange); }
+    .kpi.violet::after { background: var(--violet); }
+    .kpi.pink::after { background: var(--pink); }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kpi-value {
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+    }
+
+    .kpi-sub {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .section-title {
+      font-size: 19px;
+      font-weight: 850;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: -6px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 340px;
+      min-height: 340px;
+    }
+
+    .chart-wrap.small {
+      height: 280px;
+      min-height: 280px;
+    }
+
+    .chart-wrap.tall {
+      height: 420px;
+      min-height: 420px;
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .insight {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.05);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 11px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .route-badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(99,164,255,0.14);
+      border: 1px solid rgba(99,164,255,0.2);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 6px 0 10px;
+    }
+
+    @media (max-width: 1350px) {
+      .grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+      .grid-5,
+      .grid-3,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .page {
+        padding: 14px;
+      }
+
+      .hero,
+      .card {
+        padding: 14px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .kpi-value {
+        font-size: 28px;
+      }
+
+      .chart-wrap,
+      .chart-wrap.small,
+      .chart-wrap.tall {
+        height: 280px;
+        min-height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>Statistische Auswertung</h1>
+          <div class="subtitle">
+            Detaillierte Analyse des Materialbestands, der Standortverteilung, der Bootsklassen,
+            der Auslastung sowie der Bewegungen zwischen Standorten. Die Kennzahlen und Diagramme
+            aktualisieren sich direkt aus Supabase.
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <select id="daysFilter">
+            <option value="7">Letzte 7 Tage</option>
+            <option value="30" selected>Letzte 30 Tage</option>
+            <option value="90">Letzte 90 Tage</option>
+            <option value="365">Letztes Jahr</option>
+            <option value="99999">Gesamt</option>
+          </select>
+          <button id="reloadBtn">Neu laden</button>
+        </div>
+      </div>
+
+      <div id="status" class="status info">Lade Statistik...</div>
+
+      <div class="grid-5">
+        <div class="card kpi blue">
+          <div class="kpi-label">Gesamt Material</div>
+          <div class="kpi-value" id="kpiMaterial">–</div>
+          <div class="kpi-sub" id="kpiMaterialSub">Alle Materialeinträge</div>
+        </div>
+
+        <div class="card kpi green">
+          <div class="kpi-label">Boote</div>
+          <div class="kpi-value" id="kpiBoote">–</div>
+          <div class="kpi-sub" id="kpiBooteSub">Kategorie Boote</div>
+        </div>
+
+        <div class="card kpi orange">
+          <div class="kpi-label">Standortwechsel</div>
+          <div class="kpi-value" id="kpiMoves">–</div>
+          <div class="kpi-sub" id="kpiMovesSub">Im gewählten Zeitraum</div>
+        </div>
+
+        <div class="card kpi violet">
+          <div class="kpi-label">Aktive Nutzer</div>
+          <div class="kpi-value" id="kpiUsers">–</div>
+          <div class="kpi-sub" id="kpiUsersSub">Mit mindestens 1 Wechsel</div>
+        </div>
+
+        <div class="card kpi pink">
+          <div class="kpi-label">Boote mit Klasseninfo</div>
+          <div class="kpi-value" id="kpiBoatsWithSeats">–</div>
+          <div class="kpi-sub" id="kpiBoatsWithSeatsSub">Boote mit hinterlegten Plätzen</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid-3">
+      <section class="card">
+        <div class="section-title">Material nach Kategorie</div>
+        <div class="section-subtitle">Verteilung des gesamten Inventars über die definierten Kategorien.</div>
+        <div class="chart-wrap small"><canvas id="categoryChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Material nach Standort</div>
+        <div class="section-subtitle">Aktueller Bestand je Standort im System.</div>
+        <div class="chart-wrap small"><canvas id="standortChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Bootsklassen gesamt</div>
+        <div class="section-subtitle">Verteilung nach 1x, 2x, 4x und 8x auf Basis von <code>values.plaetze</code>.</div>
+        <div class="chart-wrap small"><canvas id="boatClassChart"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="section-title">Bootsplatz-Auslastung nach Standort</div>
+        <div class="section-subtitle">Vergleich zwischen vorhandenen Booten und hinterlegter Gesamtkapazität pro Standort.</div>
+        <div class="chart-wrap"><canvas id="capacityChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Bootsklassen je Standort</div>
+        <div class="section-subtitle">Wie sich Einer, Zweier, Vierer und Achter über die Standorte verteilen.</div>
+        <div class="chart-wrap"><canvas id="classByLocationChart"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="section-title">Standortwechsel im Zeitverlauf</div>
+        <div class="section-subtitle">Anzahl der Bewegungen pro Tag im ausgewählten Zeitraum.</div>
+        <div class="chart-wrap"><canvas id="movesTimelineChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Standortwechsel pro Nutzer</div>
+        <div class="section-subtitle">Top-Nutzer nach Anzahl der dokumentierten Bewegungen.</div>
+        <div class="chart-wrap"><canvas id="userMovesChart"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="section-title">Top-Routen zwischen Standorten</div>
+        <div class="section-subtitle">Häufigste Bewegungen von einem Standort zum anderen.</div>
+        <div class="chart-wrap tall"><canvas id="routeChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Automatische Kurz-Auswertung</div>
+        <div class="section-subtitle">Verdichtete Interpretation der wichtigsten Kennzahlen.</div>
+        <div class="pill-row" id="metaPills"></div>
+        <div class="insight-list" id="insightList"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="section-title">Letzte Standortwechsel</div>
+      <div class="section-subtitle">Die neuesten Einträge aus <code>material_history</code>.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Material ID</th>
+              <th>Von</th>
+              <th>Nach</th>
+              <th>User</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Top-Routen im Detail</div>
+      <div class="section-subtitle">Tabellarische Übersicht der häufigsten Bewegungsbeziehungen.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rang</th>
+              <th>Route</th>
+              <th>Wechsel</th>
+              <th>Anteil</th>
+            </tr>
+          </thead>
+          <tbody id="routeTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      Datenquelle: <code>material</code>, <code>material_details</code>, <code>material_history</code>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
+
+    const BOOT_CAPACITY_BY_STANDORT = {
+      BRG: { 1: 2, 2: 2, 4: 2, 8: 2 },
+      SRV: { 1: 21, 2: 10, 4: 4, 8: 1 },
+      Fühlingen: { 1: 10, 2: 6, 4: 5, 8: 2 },
+      Extern: { 1: 30, 2: 30, 4: 30, 8: 10 },
+    };
+
+    function normalizeStandortKey(s) {
+      return String(s || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/Fuehlingen/i, "Fühlingen");
+    }
+
+    if (!window.supabase) {
+      throw new Error("Supabase-Bibliothek wurde nicht geladen.");
+    }
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const els = {
+      status: document.getElementById("status"),
+      reloadBtn: document.getElementById("reloadBtn"),
+      daysFilter: document.getElementById("daysFilter"),
+
+      kpiMaterial: document.getElementById("kpiMaterial"),
+      kpiBoote: document.getElementById("kpiBoote"),
+      kpiMoves: document.getElementById("kpiMoves"),
+      kpiUsers: document.getElementById("kpiUsers"),
+      kpiBoatsWithSeats: document.getElementById("kpiBoatsWithSeats"),
+
+      kpiMaterialSub: document.getElementById("kpiMaterialSub"),
+      kpiBooteSub: document.getElementById("kpiBooteSub"),
+      kpiMovesSub: document.getElementById("kpiMovesSub"),
+      kpiUsersSub: document.getElementById("kpiUsersSub"),
+      kpiBoatsWithSeatsSub: document.getElementById("kpiBoatsWithSeatsSub"),
+
+      insightList: document.getElementById("insightList"),
+      metaPills: document.getElementById("metaPills"),
+      historyTable: document.getElementById("historyTable"),
+      routeTable: document.getElementById("routeTable"),
+    };
+
+    const chartStore = {};
+
+    function setStatus(message, isError = false) {
+      els.status.className = isError ? "status error" : "status info";
+      els.status.textContent = message;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "–";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString("de-DE");
+    }
+
+    function formatPercent(value) {
+      return `${Math.round((Number(value) || 0) * 100)}%`;
+    }
+
+    function clearTables() {
+      els.historyTable.innerHTML = `<tr><td colspan="5" class="muted">Keine Einträge</td></tr>`;
+      els.routeTable.innerHTML = `<tr><td colspan="4" class="muted">Keine Daten</td></tr>`;
+      els.insightList.innerHTML = `<div class="insight muted">Noch keine Auswertung vorhanden.</div>`;
+      els.metaPills.innerHTML = "";
+    }
+
+    function destroyCharts() {
+      Object.values(chartStore).forEach((chart) => {
+        if (chart) chart.destroy();
+      });
+      for (const key in chartStore) delete chartStore[key];
+    }
+
+    function createChart(id, config) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return null;
+      if (chartStore[id]) chartStore[id].destroy();
+      chartStore[id] = new Chart(ctx, config);
+      return chartStore[id];
+    }
+
+    function sortDescRows(map) {
+      return [...map.entries()]
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    function countBy(items, getKey) {
+      const map = new Map();
+      for (const item of items) {
+        const key = getKey(item);
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+      return sortDescRows(map);
+    }
+
+    function sumObjectValues(obj) {
+      return Object.values(obj || {}).reduce((sum, n) => sum + Number(n || 0), 0);
+    }
+
+    function buildDailySeries(history) {
+      const map = new Map();
+      for (const entry of history) {
+        const value = entry.geändert_am;
+        if (!value) continue;
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) continue;
+        const key = d.toISOString().slice(0, 10);
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+
+      return [...map.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, count]) => ({ date, count }));
+    }
+
+    function renderHistoryTable(historyAll) {
+      const recentRows = historyAll.slice(0, 30);
+
+      els.historyTable.innerHTML = recentRows.length
+        ? recentRows.map((h) => `
+            <tr>
+              <td>${escapeHtml(formatDateTime(h.geändert_am))}</td>
+              <td>${escapeHtml(h.material_id)}</td>
+              <td>${escapeHtml(h.alter_standort || "–")}</td>
+              <td>${escapeHtml(h.neuer_standort || "–")}</td>
+              <td>${escapeHtml(h.geändert_von || "–")}</td>
+            </tr>
+          `).join("")
+        : `<tr><td colspan="5" class="muted">Keine Einträge</td></tr>`;
+    }
+
+    function renderRouteTable(routeRows, totalMoves) {
+      if (!routeRows.length) {
+        els.routeTable.innerHTML = `<tr><td colspan="4" class="muted">Keine Daten</td></tr>`;
+        return;
+      }
+
+      els.routeTable.innerHTML = routeRows.slice(0, 15).map((row, index) => {
+        const share = totalMoves > 0 ? row.value / totalMoves : 0;
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td><span class="route-badge">${escapeHtml(row.label)}</span></td>
+            <td>${row.value}</td>
+            <td>${escapeHtml(formatPercent(share))}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderInsights(data) {
+      const {
+        material,
+        boote,
+        boatsWithSeats,
+        history,
+        categoryRows,
+        standortRows,
+        capacityRows,
+        userRows,
+        routeRows,
+        classRows
+      } = data;
+
+      const topCategory = categoryRows[0];
+      const topStandort = standortRows[0];
+      const topRoute = routeRows[0];
+      const topUser = userRows[0];
+      const highestCapacity = [...capacityRows].sort((a, b) => b.percent - a.percent)[0];
+      const lowestCapacity = [...capacityRows].sort((a, b) => a.percent - b.percent)[0];
+      const seatCoverage = boote.length > 0 ? boatsWithSeats / boote.length : 0;
+      const avgMovesPerActiveUser = userRows.length > 0 ? history.length / userRows.length : 0;
+
+      const insights = [];
+
+      if (topCategory) {
+        insights.push(`Die größte Materialkategorie ist aktuell <strong>${escapeHtml(topCategory.label)}</strong> mit <strong>${topCategory.value}</strong> Einträgen.`);
+      }
+
+      if (topStandort) {
+        insights.push(`Der materialstärkste Standort ist <strong>${escapeHtml(topStandort.label)}</strong> mit <strong>${topStandort.value}</strong> hinterlegten Objekten.`);
+      }
+
+      if (highestCapacity) {
+        insights.push(`Die höchste Bootsplatz-Auslastung zeigt <strong>${escapeHtml(highestCapacity.label)}</strong> mit <strong>${highestCapacity.value}/${highestCapacity.total}</strong> belegten Plätzen bzw. <strong>${highestCapacity.percent}%</strong>.`);
+      }
+
+      if (lowestCapacity) {
+        insights.push(`Das größte freie Kapazitätspotenzial liegt aktuell bei <strong>${escapeHtml(lowestCapacity.label)}</strong>, dort sind nur <strong>${lowestCapacity.percent}%</strong> der hinterlegten Plätze belegt.`);
+      }
+
+      if (topRoute) {
+        insights.push(`Die häufigste Bewegungsroute im gewählten Zeitraum ist <strong>${escapeHtml(topRoute.label)}</strong> mit <strong>${topRoute.value}</strong> Wechseln.`);
+      }
+
+      if (topUser) {
+        insights.push(`Am aktivsten bei Standortwechseln war <strong>${escapeHtml(topUser.label)}</strong> mit <strong>${topUser.value}</strong> dokumentierten Aktionen.`);
+      }
+
+      if (classRows.length) {
+        const topClass = classRows[0];
+        insights.push(`Die häufigste erfasste Bootsklasse ist <strong>${escapeHtml(topClass.label)}</strong> mit <strong>${topClass.value}</strong> Booten.`);
+      }
+
+      insights.push(`Für <strong>${boatsWithSeats}</strong> von <strong>${boote.length}</strong> Booten liegt eine Klasseninformation über <code>plaetze</code> vor. Das entspricht <strong>${formatPercent(seatCoverage)}</strong> Datenabdeckung.`);
+      insights.push(`Im Durchschnitt entfallen <strong>${avgMovesPerActiveUser.toFixed(1)}</strong> Standortwechsel auf jeden aktiven Nutzer im gewählten Zeitraum.`);
+
+      els.insightList.innerHTML = insights
+        .map(text => `<div class="insight">${text}</div>`)
+        .join("");
+
+      const pills = [
+        `Material: ${material.length}`,
+        `Boote: ${boote.length}`,
+        `Wechsel: ${history.length}`,
+        `Aktive Nutzer: ${userRows.length}`,
+        `Klassenabdeckung: ${formatPercent(seatCoverage)}`
+      ];
+
+      els.metaPills.innerHTML = pills
+        .map(p => `<span class="pill">${escapeHtml(p)}</span>`)
+        .join("");
+    }
+
+    function renderCharts(data) {
+      const {
+        categoryRows,
+        standortRows,
+        classRows,
+        capacityRows,
+        classByLocation,
+        dailySeries,
+        userRows,
+        routeRows
+      } = data;
+
+      createChart("categoryChart", {
+        type: "doughnut",
+        data: {
+          labels: categoryRows.map(r => r.label),
+          datasets: [{
+            data: categoryRows.map(r => r.value),
+            backgroundColor: [
+              "#63a4ff", "#48d597", "#ffd166", "#ff9f5a",
+              "#ff7b7b", "#9d7bff", "#56e0ff", "#ff76c8"
+            ],
+            borderColor: "rgba(8,17,31,0.9)",
+            borderWidth: 2
+          }]
+        },
+        options: commonChartOptions({
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#eef4ff" } }
+          }
+        })
+      });
+
+      createChart("standortChart", {
+        type: "bar",
+        data: {
+          labels: standortRows.map(r => r.label),
+          datasets: [{
+            label: "Material",
+            data: standortRows.map(r => r.value),
+            backgroundColor: ["#63a4ff", "#48d597", "#ffd166", "#9d7bff", "#ff7b7b"]
+          }]
+        },
+        options: commonChartOptions({
+          indexAxis: "y",
+          plugins: { legend: { display: false } }
+        })
+      });
+
+      createChart("boatClassChart", {
+        type: "pie",
+        data: {
+          labels: classRows.map(r => r.label),
+          datasets: [{
+            data: classRows.map(r => r.value),
+            backgroundColor: ["#63a4ff", "#48d597", "#ffd166", "#ff9f5a", "#9d7bff", "#56e0ff"]
+          }]
+        },
+        options: commonChartOptions({
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#eef4ff" } }
+          }
+        })
+      });
+
+      createChart("capacityChart", {
+        type: "bar",
+        data: {
+          labels: capacityRows.map(r => r.label),
+          datasets: [
+            {
+              label: "Belegt",
+              data: capacityRows.map(r => r.value),
+              backgroundColor: "#48d597"
+            },
+            {
+              label: "Kapazität gesamt",
+              data: capacityRows.map(r => r.total),
+              backgroundColor: "#243a5f"
+            }
+          ]
+        },
+        options: commonChartOptions({
+          plugins: { legend: { labels: { color: "#eef4ff" } } }
+        })
+      });
+
+      createChart("classByLocationChart", {
+        type: "bar",
+        data: {
+          labels: classByLocation.labels,
+          datasets: classByLocation.datasets
+        },
+        options: commonChartOptions({
+          responsive: true,
+          scales: {
+            x: { stacked: true, ticks: { color: "#9db2d1" }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { stacked: true, ticks: { color: "#9db2d1" }, grid: { color: "rgba(255,255,255,0.06)" } }
+          },
+          plugins: { legend: { labels: { color: "#eef4ff" } } }
+        })
+      });
+
+      createChart("movesTimelineChart", {
+        type: "line",
+        data: {
+          labels: dailySeries.map(r => r.date),
+          datasets: [{
+            label: "Standortwechsel",
+            data: dailySeries.map(r => r.count),
+            borderColor: "#56e0ff",
+            backgroundColor: "rgba(86,224,255,0.18)",
+            fill: true,
+            tension: 0.28,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: commonChartOptions({
+          plugins: { legend: { labels: { color: "#eef4ff" } } }
+        })
+      });
+
+      createChart("userMovesChart", {
+        type: "bar",
+        data: {
+          labels: userRows.slice(0, 12).map(r => shortenUser(r.label)),
+          datasets: [{
+            label: "Wechsel",
+            data: userRows.slice(0, 12).map(r => r.value),
+            backgroundColor: "#ff9f5a"
+          }]
+        },
+        options: commonChartOptions({
+          indexAxis: "y",
+          plugins: { legend: { display: false } }
+        })
+      });
+
+      createChart("routeChart", {
+        type: "bar",
+        data: {
+          labels: routeRows.slice(0, 12).map(r => r.label),
+          datasets: [{
+            label: "Wechsel",
+            data: routeRows.slice(0, 12).map(r => r.value),
+            backgroundColor: "#9d7bff"
+          }]
+        },
+        options: commonChartOptions({
+          indexAxis: "y",
+          plugins: { legend: { display: false } }
+        })
+      });
+    }
+
+    function commonChartOptions(extra = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks: { color: "#9db2d1" },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          },
+          y: {
+            ticks: { color: "#9db2d1" },
+            grid: { color: "rgba(255,255,255,0.06)" }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "#eef4ff" }
+          },
+          tooltip: {
+            backgroundColor: "rgba(8,17,31,0.95)",
+            titleColor: "#eef4ff",
+            bodyColor: "#eef4ff",
+            borderColor: "rgba(255,255,255,0.08)",
+            borderWidth: 1
+          }
+        },
+        ...extra
+      };
+    }
+
+    function shortenUser(value) {
+      const s = String(value || "Unbekannt");
+      return s.length > 18 ? s.slice(0, 18) + "…" : s;
+    }
+
+    function buildClassByLocationDataset(boatsWithSeatInfo) {
+      const locations = [...new Set(boatsWithSeatInfo.map(b => normalizeStandortKey(b.standort || "Unbekannt")))];
+      const seatClasses = [1, 2, 4, 8];
+
+      const colorMap = {
+        1: "#63a4ff",
+        2: "#48d597",
+        4: "#ffd166",
+        8: "#ff7b7b"
+      };
+
+      const datasets = seatClasses.map(seats => ({
+        label: `${seats}er`,
+        data: locations.map(loc => boatsWithSeatInfo.filter(b => normalizeStandortKey(b.standort) === loc && Number(b.seats) === seats).length),
+        backgroundColor: colorMap[seats]
+      }));
+
+      return { labels: locations, datasets };
+    }
+
+    async function loadStats() {
+      try {
+        setStatus("Lade Statistik...");
+        clearTables();
+        destroyCharts();
+
+        const selectedDays = Number(els.daysFilter.value || 30);
+        const sinceIso =
+          selectedDays >= 99999
+            ? null
+            : new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const [materialRes, detailsRes, historyRes] = await Promise.all([
+          supabaseClient
+            .from("material")
+            .select("id, name, kategorie, standort, created_at, bundle_id"),
+
+          supabaseClient
+            .from("material_details")
+            .select("material_id, values, updated_at, updated_by"),
+
+          supabaseClient
+            .from("material_history")
+            .select("id, material_id, alter_standort, neuer_standort, geändert_von, geändert_am")
+            .order("geändert_am", { ascending: false }),
+        ]);
+
+        console.log("materialRes", materialRes);
+        console.log("detailsRes", detailsRes);
+        console.log("historyRes", historyRes);
+
+        const material = materialRes.data || [];
+        const details = detailsRes.data || [];
+        const historyAll = historyRes.data || [];
+        const history = sinceIso
+          ? historyAll.filter(h => (h.geändert_am || "") >= sinceIso)
+          : historyAll;
+
+        const debugLines = [
+          `material: ${material.length}${materialRes.error ? " | Fehler: " + materialRes.error.message : ""}`,
+          `material_details: ${details.length}${detailsRes.error ? " | Fehler: " + detailsRes.error.message : ""}`,
+          `material_history: ${historyAll.length}${historyRes.error ? " | Fehler: " + historyRes.error.message : ""}`
+        ];
+
+        if (materialRes.error) {
+          setStatus("Fehler beim Laden von material\n\n" + debugLines.join("\n"), true);
+          return;
+        }
+
+        const detailsByMaterialId = Object.fromEntries(
+          details.map(row => [row.material_id, row.values || {}])
+        );
+
+        const boote = material.filter(m => m.kategorie === "Boote");
+        const boatsWithSeatInfo = boote
+          .map(boat => {
+            const values = detailsByMaterialId?.[boat.id] || {};
+            const seats = Number(values.plaetze);
+            return { ...boat, seats };
+          })
+          .filter(boat => Number.isFinite(boat.seats) && boat.seats > 0);
+
+        const categoryRows = countBy(material, m => m.kategorie || "Unbekannt");
+        const standortRows = countBy(material, m => normalizeStandortKey(m.standort || "Unbekannt"));
+        const userRows = historyRes.error ? [] : countBy(history, h => h.geändert_von || "Unbekannt");
+
+        const routeMap = new Map();
+        for (const h of history) {
+          const from = h.alter_standort || "–";
+          const to = h.neuer_standort || "–";
+          const key = `${from} → ${to}`;
+          routeMap.set(key, (routeMap.get(key) || 0) + 1);
+        }
+        const routeRows = sortDescRows(routeMap);
+
+        const classMap = new Map();
+        for (const boat of boatsWithSeatInfo) {
+          const key = `${boat.seats}er`;
+          classMap.set(key, (classMap.get(key) || 0) + 1);
+        }
+        const classRows = sortDescRows(classMap);
+
+        const capacityRows = Object.keys(BOOT_CAPACITY_BY_STANDORT).map((standort) => {
+          const boatsAtLocation = boote.filter(
+            b => normalizeStandortKey(b.standort) === normalizeStandortKey(standort)
+          );
+          const total = sumObjectValues(BOOT_CAPACITY_BY_STANDORT[standort]);
+          const used = boatsAtLocation.length;
+          const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+
+          return {
+            label: standort,
+            value: used,
+            total,
+            percent
+          };
+        });
+
+        const dailySeries = historyRes.error ? [] : buildDailySeries(history);
+        const classByLocation = buildClassByLocationDataset(boatsWithSeatInfo);
+        const distinctUsers = new Set(history.map(h => h.geändert_von).filter(Boolean));
+
+        els.kpiMaterial.textContent = material.length;
+        els.kpiBoote.textContent = boote.length;
+        els.kpiMoves.textContent = history.length;
+        els.kpiUsers.textContent = distinctUsers.size;
+        els.kpiBoatsWithSeats.textContent = boatsWithSeatInfo.length;
+
+        els.kpiMaterialSub.textContent = "Alle Materialeinträge";
+        els.kpiBooteSub.textContent = "Kategorie Boote";
+        els.kpiMovesSub.textContent = selectedDays >= 99999 ? "Alle Wechsel" : `Letzte ${selectedDays} Tage`;
+        els.kpiUsersSub.textContent = "Mit mindestens 1 Wechsel";
+        els.kpiBoatsWithSeatsSub.textContent = `${boote.length > 0 ? Math.round((boatsWithSeatInfo.length / boote.length) * 100) : 0}% der Boote`;
+
+        renderHistoryTable(historyAll);
+        renderRouteTable(routeRows, history.length);
+        renderInsights({
+          material,
+          boote,
+          boatsWithSeats: boatsWithSeatInfo.length,
+          history,
+          categoryRows,
+          standortRows,
+          capacityRows,
+          userRows,
+          routeRows,
+          classRows
+        });
+
+        renderCharts({
+          categoryRows,
+          standortRows,
+          classRows,
+          capacityRows,
+          classByLocation,
+          dailySeries,
+          userRows,
+          routeRows
+        });
+
+        debugLines.push(`Boote: ${boote.length}`);
+        debugLines.push(`Boote mit plaetze: ${boatsWithSeatInfo.length}`);
+        debugLines.push(`Routen: ${routeRows.length}`);
+        debugLines.push(`Aktive Nutzer: ${distinctUsers.size}`);
+
+        if (detailsRes.error || historyRes.error) {
+          setStatus("Teilweise geladen\n\n" + debugLines.join("\n"), true);
+        } else {
+          setStatus("Aktualisiert: " + new Date().toLocaleString("de-DE") + "\n\n" + debugLines.join("\n"));
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus(`Fehler beim Laden: ${err.message || err}`, true);
+      }
+    }
+
+    els.reloadBtn.addEventListener("click", loadStats);
+    els.daysFilter.addEventListener("change", loadStats);
+
+    loadStats();
+  </script>
+</body>
+</html>
