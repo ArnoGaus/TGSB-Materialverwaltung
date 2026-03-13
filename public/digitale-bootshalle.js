@@ -101,10 +101,10 @@ const LAYOUTS = {
           {
             title: "1er-Halle",
             slotPrefix: "srv-h1",
-            split: { left: 6, right: 6 },
+            split: { left: 7, right: 7 },
             requiredSeats: 1,
             slotOverrides: {
-             "srv-h1-L-4": "blocked",
+             "srv-h1-L-5": "blocked",
             }
           },
           {

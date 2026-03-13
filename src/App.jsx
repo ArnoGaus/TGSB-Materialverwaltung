@@ -955,8 +955,13 @@ export default function App() {
               Statistik
             </button>
           )}
+        <div>  
         <div>
-          
+          <button onClick={() => window.open("/tabelle.html", "_blank", "noopener,noreferrer")}>
+            Tabelle
+          </button>
+        </div> 
+
         </div>
           <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
             Digitale Bootshalle
