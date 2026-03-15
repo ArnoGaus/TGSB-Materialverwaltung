@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Materialübersicht nach Kategorie</title>
+  <title>Materialübersicht</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -12,6 +12,7 @@
       --card: #13203a;
       --card-2: #182946;
       --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.12);
       --text: #eef4ff;
       --muted: #9db2d1;
       --blue: #63a4ff;
@@ -22,9 +23,14 @@
       --violet: #9d7bff;
       --pink: #ff76c8;
       --shadow: 0 18px 40px rgba(0,0,0,0.28);
+      --sticky-top: 10px;
     }
 
     * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
       margin: 0;
@@ -44,7 +50,7 @@
       gap: 18px;
     }
 
-    .hero, .card {
+    .hero, .card, .sticky-overlay {
       background: linear-gradient(180deg, var(--card), var(--card-2));
       border: 1px solid var(--border);
       border-radius: 24px;
@@ -132,6 +138,98 @@
       color: #d9ffef;
       background: rgba(72,213,151,0.12);
       border-color: rgba(72,213,151,0.28);
+    }
+
+    .sticky-overlay {
+      position: sticky;
+      top: var(--sticky-top);
+      z-index: 3000;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      display: none;
+    }
+
+    .sticky-overlay.active {
+      display: block;
+    }
+
+    .sticky-overlay-top {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(19,32,58,0.98), rgba(24,41,70,0.98));
+    }
+
+    .sticky-category-left {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .sticky-category-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+      font-weight: 800;
+    }
+
+    .sticky-category-value {
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .sticky-category-meta {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .sticky-head-wrap {
+      display: none;
+      overflow: hidden;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(6,12,24,0.94);
+    }
+
+    .sticky-head-wrap.show {
+      display: block;
+    }
+
+    .sticky-head-scroller {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .sticky-head-scroller::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sticky-head-table {
+      width: 100%;
+      min-width: max-content;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: transparent;
+    }
+
+    .sticky-head-table th {
+      color: #b9c9e6;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      text-align: left;
+      padding: 10px 8px;
+      background: transparent;
+      white-space: normal;
+      border-bottom: 0;
     }
 
     .grid-4 {
@@ -223,14 +321,38 @@
       background: rgba(255,255,255,0.09);
     }
 
+    .table-controls {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .sort-group {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .sort-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .table-wrap {
       overflow-x: auto;
+      position: relative;
     }
 
     table {
       width: 100%;
+      min-width: 1180px;
       border-collapse: collapse;
       font-size: 14px;
+      table-layout: fixed;
     }
 
     th, td {
@@ -238,17 +360,19 @@
       padding: 11px 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       vertical-align: top;
+      word-wrap: break-word;
     }
 
-    th {
+    thead th {
       color: var(--muted);
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 0.35px;
-      position: sticky;
-      top: 0;
-      background: rgba(10,18,32,0.98);
+      background: rgba(10,18,32,0.78);
+      position: static;
+      top: auto;
       z-index: 1;
+      backdrop-filter: blur(4px);
     }
 
     .table-wrap thead th:first-child { border-top-left-radius: 10px; }
@@ -268,24 +392,18 @@
       background: rgba(255,255,255,0.05);
     }
 
-    .category-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
     .bool-yes { color: var(--green); font-weight: 700; }
     .bool-no { color: var(--red); font-weight: 700; }
 
     .state-good { color: var(--green); font-weight: 700; }
     .state-ok { color: var(--yellow); font-weight: 700; }
     .state-bad { color: var(--red); font-weight: 700; }
+    .state-warn { color: var(--orange); font-weight: 700; }
 
     .category-details {
       border-radius: 18px;
       overflow: hidden;
+      scroll-margin-top: 120px;
     }
 
     .category-details > summary {
@@ -458,6 +576,13 @@
       line-height: 1.45;
     }
 
+    .multi-line-value {
+      display: grid;
+      gap: 2px;
+      line-height: 1.45;
+      white-space: normal;
+    }
+
     @media (max-width: 1100px) {
       .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -466,8 +591,44 @@
       .grid-4 { grid-template-columns: 1fr; }
       .page { padding: 14px; }
       .hero, .card { padding: 14px; }
+
       h1 { font-size: 28px; }
       .kpi-value { font-size: 26px; }
+
+      .sticky-overlay {
+        top: 6px;
+      }
+
+      .sticky-overlay-top {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .sticky-category-meta {
+        text-align: left;
+        white-space: normal;
+      }
+
+      .sticky-head-table th,
+      thead th,
+      td {
+        padding: 10px 6px;
+        font-size: 13px;
+      }
+
+      .table-controls {
+        justify-content: stretch;
+      }
+
+      .sort-group {
+        width: 100%;
+      }
+
+      .sort-group select,
+      .sort-group button {
+        flex: 1 1 auto;
+      }
     }
   </style>
 </head>
@@ -520,10 +681,52 @@
       </div>
     </section>
 
+    <section id="stickyOverlay" class="sticky-overlay">
+      <div class="sticky-overlay-top">
+        <div class="sticky-category-left">
+          <div class="sticky-category-label">Aktuelle Kategorie</div>
+          <div id="stickyCategoryName" class="sticky-category-value">–</div>
+        </div>
+        <div id="stickyCategoryMeta" class="sticky-category-meta">–</div>
+      </div>
+      <div id="stickyHeadWrap" class="sticky-head-wrap">
+        <div id="stickyHeadScroller" class="sticky-head-scroller">
+          <table id="stickyHeadTable" class="sticky-head-table"></table>
+        </div>
+      </div>
+    </section>
+
     <section class="card">
       <div class="section-title">Sprungmarken</div>
       <div class="section-subtitle">Direkt zu einer Kategorie springen.</div>
       <div id="categoryAnchors" class="category-anchor-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Sortierung</div>
+      <div class="section-subtitle">Die Reihenfolge wird global auf alle sichtbaren Einträge angewendet.</div>
+      <div class="table-controls">
+        <div class="sort-group">
+          <span class="sort-label">Sortieren nach</span>
+          <select id="sortFieldSelect">
+            <option value="default">Standard</option>
+            <option value="name">Name</option>
+            <option value="standort">Standort</option>
+            <option value="kategorie">Kategorie</option>
+            <option value="bootsform">Bootsform</option>
+            <option value="blattform">Blattform</option>
+            <option value="schaft">Schaft</option>
+            <option value="gewicht">Gewicht</option>
+            <option value="plaetze">Sitzplätze</option>
+            <option value="aktueller_nutzer">Aktueller Nutzer</option>
+          </select>
+          <select id="sortDirectionSelect">
+            <option value="asc">A–Z / klein–groß</option>
+            <option value="desc">Z–A / groß–klein</option>
+          </select>
+          <button id="resetSortBtn" type="button">Sortierung zurücksetzen</button>
+        </div>
+      </div>
     </section>
 
     <div id="categoryTables"></div>
@@ -591,12 +794,21 @@
       editModeBtn: document.getElementById("editModeBtn"),
       adminInfo: document.getElementById("adminInfo"),
       searchInput: document.getElementById("searchInput"),
+      sortFieldSelect: document.getElementById("sortFieldSelect"),
+      sortDirectionSelect: document.getElementById("sortDirectionSelect"),
+      resetSortBtn: document.getElementById("resetSortBtn"),
       kpiMaterial: document.getElementById("kpiMaterial"),
       kpiCategories: document.getElementById("kpiCategories"),
       kpiBoats: document.getElementById("kpiBoats"),
       kpiBoatDetails: document.getElementById("kpiBoatDetails"),
       categoryAnchors: document.getElementById("categoryAnchors"),
       categoryTables: document.getElementById("categoryTables"),
+      stickyOverlay: document.getElementById("stickyOverlay"),
+      stickyCategoryName: document.getElementById("stickyCategoryName"),
+      stickyCategoryMeta: document.getElementById("stickyCategoryMeta"),
+      stickyHeadWrap: document.getElementById("stickyHeadWrap"),
+      stickyHeadScroller: document.getElementById("stickyHeadScroller"),
+      stickyHeadTable: document.getElementById("stickyHeadTable"),
       editModalBackdrop: document.getElementById("editModalBackdrop"),
       editMeta: document.getElementById("editMeta"),
       editValueInput: document.getElementById("editValueInput"),
@@ -610,6 +822,11 @@
     let isAdmin = false;
     let editMode = false;
     let currentEditContext = null;
+    let stickyRaf = null;
+    let currentSort = {
+      field: "default",
+      direction: "asc"
+    };
 
     function setStatus(message, type = "default") {
       els.status.className = "status";
@@ -650,6 +867,68 @@
       if (typeof value === "boolean") return value;
       const normalized = String(value).trim().toLowerCase();
       return normalized === "ja" || normalized === "true" || normalized === "1";
+    }
+
+    function getDetailValue(obj, keys) {
+      for (const key of keys) {
+        const value = obj?.[key];
+        if (value !== undefined && value !== null && value !== "") {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    function normalizeBoatDetails(details = {}) {
+      const normalized = structuredClone(details || {});
+
+      const aliasMap = {
+        Bootsform: ["Bootsform", "bootsform", "boots_form"],
+        gewicht_kg: ["gewicht_kg", "gewicht", "gewichtKg", "gewicht_kg "],
+        huelle_vorhanden: ["huelle_vorhanden", "huelle_vorhanden ", "hülle_vorhanden", "huelle", "hülle"],
+        huelle_notiz: ["huelle_notiz", "hülle_notiz", "huellen_notiz", "hüllen_notiz"],
+        aktueller_nutzer: ["aktueller_nutzer", "aktueller nutzer", "nutzer", "current_user"],
+        defekt: ["defekt"],
+        schuhe: ["schuhe", "Schuhe"],
+        plaetze: ["plaetze", "plätze", "sitze", "sitzplaetze", "sitzplätze"],
+        steuermann_verfuegbar: [
+          "steuermann_verfuegbar",
+          "steuermann_verfügbar",
+          "steuermann verfuegbar",
+          "steuermann verfügbar",
+          "steuermann",
+          "cox",
+          "cox_available",
+          "cox_verfuegbar"
+        ]
+      };
+
+      for (const [targetKey, aliases] of Object.entries(aliasMap)) {
+        const value = getDetailValue(normalized, aliases);
+        if (value !== null) {
+          normalized[targetKey] = value;
+        }
+      }
+
+      return normalized;
+    }
+
+    function getBoatValue(details, key) {
+      const boatDetails = normalizeBoatDetails(details || {});
+
+      const keyMap = {
+        Bootsform: ["Bootsform"],
+        gewicht_kg: ["gewicht_kg"],
+        huelle_vorhanden: ["huelle_vorhanden"],
+        huelle_notiz: ["huelle_notiz"],
+        aktueller_nutzer: ["aktueller_nutzer"],
+        defekt: ["defekt"],
+        schuhe: ["schuhe"],
+        plaetze: ["plaetze"],
+        steuermann_verfuegbar: ["steuermann_verfuegbar"]
+      };
+
+      return getDetailValue(boatDetails, keyMap[key] || [key]);
     }
 
     function formatDefektValue(value, category) {
@@ -724,32 +1003,6 @@
       return lines.length ? `<div class="shoes-list">${lines.join("")}</div>` : "–";
     }
 
-    function formatValue(value, key = "", category = "") {
-      if (key === "schuhe") return formatShoesValue(value);
-      if (key === "defekt") return formatDefektValue(value, category);
-
-      if (value === null || value === undefined || value === "") return "–";
-
-      if (typeof value === "boolean") {
-        return value ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
-      }
-
-      if (Array.isArray(value)) {
-        if (!value.length) return "–";
-        return escapeHtml(value.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", "));
-      }
-
-      if (typeof value === "object") {
-        const entries = Object.entries(value);
-        if (!entries.length) return "–";
-        return entries
-          .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}`)
-          .join("<br>");
-      }
-
-      return escapeHtml(String(value));
-    }
-
     function stringifyForEditor(value) {
       if (value === null || value === undefined || value === "") return "";
       if (typeof value === "object") return JSON.stringify(value, null, 2);
@@ -789,50 +1042,235 @@
       ].join(" ").toLowerCase();
     }
 
-    function sortCategoryRows(rows, category) {
-      const copy = [...rows];
-
-      if (category === "Boote") {
-        copy.sort((a, b) => {
-          const aSeats = Number(a.details?.plaetze);
-          const bSeats = Number(b.details?.plaetze);
-          const aSeatValue = Number.isFinite(aSeats) ? aSeats : 999;
-          const bSeatValue = Number.isFinite(bSeats) ? bSeats : 999;
-          if (aSeatValue !== bSeatValue) return aSeatValue - bSeatValue;
-
-          const byStandort = String(a.standort || "").localeCompare(String(b.standort || ""), "de");
-          if (byStandort !== 0) return byStandort;
-
-          return String(a.name || "").localeCompare(String(b.name || ""), "de");
-        });
-        return copy;
+    function getSkullValue(details, key) {
+      if (key === "Blattform") {
+        return getDetailValue(details, ["blattform", "Blattform"]);
       }
-
-      copy.sort((a, b) => {
-        const byName = String(a.name || "").localeCompare(String(b.name || ""), "de");
-        if (byName !== 0) return byName;
-        return String(a.standort || "").localeCompare(String(b.standort || ""), "de");
-      });
-      return copy;
+      if (key === "Schafttyp") {
+        return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]);
+      }
+      if (key === "Gesamtlänge") {
+        return getDetailValue(details, [
+          "gesamtlaenge_cm",
+          "gesamtlänge_cm",
+          "gesamtlaenge",
+          "gesamtlänge",
+          "Gesamtlänge"
+        ]);
+      }
+      if (key === "Innenheben") {
+        return getDetailValue(details, [
+          "innenhebel_cm",
+          "innenheben_cm",
+          "innenhebel",
+          "innenheben",
+          "Innenheben"
+        ]);
+      }
+      if (key === "defekt") {
+        return getDetailValue(details, ["defekt"]);
+      }
+      return details?.[key];
     }
 
-    function renderAnchors(categories) {
-      if (!categories.length) {
-        els.categoryAnchors.innerHTML = '<span class="muted">Keine Kategorien vorhanden</span>';
-        return;
+    function getRiemenBlattform(details) {
+      return getDetailValue(details, ["blattform", "Blattform"]);
+    }
+
+    function getRiemenSchaft(details) {
+      return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]);
+    }
+
+    function getRiemenDifferent(details) {
+      return getDetailValue(details, [
+        "unterschiedliche_seiten",
+        "seiten_unterschiedlich",
+        "unterschiedlich",
+        "laengen_unterschiedlich",
+        "längen_unterschiedlich"
+      ]);
+    }
+
+    function getRiemenGripAdjustable(details) {
+      return getDetailValue(details, ["griff_verstellbar"]);
+    }
+
+    function getRiemenSideValues(details, type) {
+      const backbord = details?.backbord || {};
+      const steuerbord = details?.steuerbord || {};
+
+      if (type === "gesamtlänge") {
+        return {
+          backbord: getDetailValue(backbord, ["gesamtlaenge_cm", "gesamtlänge_cm", "gesamtlaenge", "gesamtlänge"]),
+          steuerbord: getDetailValue(steuerbord, ["gesamtlaenge_cm", "gesamtlänge_cm", "gesamtlaenge", "gesamtlänge"])
+        };
       }
 
-      els.categoryAnchors.innerHTML = categories.map(category => {
-        const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.Unbekannt;
-        return `<a class="anchor-pill" href="#cat-${slugify(category)}" style="box-shadow: inset 0 0 0 1px ${color}55;">${escapeHtml(category)}</a>`;
-      }).join("");
+      if (type === "innenheben") {
+        return {
+          backbord: getDetailValue(backbord, ["innenhebel_cm", "innenheben_cm", "innenhebel", "innenheben"]),
+          steuerbord: getDetailValue(steuerbord, ["innenhebel_cm", "innenheben_cm", "innenhebel", "innenheben"])
+        };
+      }
+
+      return { backbord: null, steuerbord: null };
+    }
+
+    function formatRiemenCombined(details, type) {
+      const { backbord, steuerbord } = getRiemenSideValues(details, type);
+      const diffFlag = getRiemenDifferent(details);
+
+      if (backbord === null && steuerbord === null) return "–";
+
+      const isDifferent = diffFlag !== null
+        ? normalizeTruthy(diffFlag)
+        : String(backbord ?? "") !== String(steuerbord ?? "");
+
+      if (!isDifferent) {
+        return escapeHtml(String(backbord ?? steuerbord ?? "–"));
+      }
+
+      return `
+        <div class="multi-line-value">
+          <div>Backbord: ${escapeHtml(String(backbord ?? "–"))}</div>
+          <div>Steuerbord: ${escapeHtml(String(steuerbord ?? "–"))}</div>
+        </div>
+      `;
+    }
+
+    function formatValue(value, key = "", category = "", item = null) {
+      if (category === "Boote") {
+        const details = item?.details || {};
+
+        if (key === "Bootsform") {
+          const v = getBoatValue(details, "Bootsform");
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+
+        if (key === "gewicht_kg") {
+          const v = getBoatValue(details, "gewicht_kg");
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+
+        if (key === "huelle_vorhanden") {
+          const v = getBoatValue(details, "huelle_vorhanden");
+          if (v === null) return "–";
+          return normalizeTruthy(v)
+            ? '<span class="bool-yes">Ja</span>'
+            : '<span class="bool-no">Nein</span>';
+        }
+
+        if (key === "huelle_notiz") {
+          const v = getBoatValue(details, "huelle_notiz");
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+
+        if (key === "aktueller_nutzer") {
+          const v = getBoatValue(details, "aktueller_nutzer");
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+
+        if (key === "defekt") {
+          const v = getBoatValue(details, "defekt");
+          return formatDefektValue(v, category);
+        }
+
+        if (key === "schuhe") {
+          const v = getBoatValue(details, "schuhe");
+          return formatShoesValue(v);
+        }
+
+        if (key === "plaetze") {
+          const v = getBoatValue(details, "plaetze");
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+
+        if (key === "steuermann_verfuegbar") {
+          const v = getBoatValue(details, "steuermann_verfuegbar");
+          if (v === null) return "–";
+          return normalizeTruthy(v)
+            ? '<span class="bool-yes">Ja</span>'
+            : '<span class="bool-no">Nein</span>';
+        }
+      }
+
+      if (category === "Skulls") {
+        const details = item?.details || {};
+
+        if (key === "Blattform") return getSkullValue(details, "Blattform") === null ? "–" : escapeHtml(String(getSkullValue(details, "Blattform")));
+        if (key === "Schafttyp") return getSkullValue(details, "Schafttyp") === null ? "–" : escapeHtml(String(getSkullValue(details, "Schafttyp")));
+        if (key === "Gesamtlänge") return getSkullValue(details, "Gesamtlänge") === null ? "–" : escapeHtml(String(getSkullValue(details, "Gesamtlänge")));
+        if (key === "Innenheben") return getSkullValue(details, "Innenheben") === null ? "–" : escapeHtml(String(getSkullValue(details, "Innenheben")));
+        if (key === "defekt") return formatDefektValue(getSkullValue(details, "defekt"), category);
+      }
+
+      if (category === "Riemen") {
+        const details = item?.details || {};
+
+        if (key === "Blattform") {
+          const v = getRiemenBlattform(details);
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+        if (key === "Schaft") {
+          const v = getRiemenSchaft(details);
+          return v === null ? "–" : escapeHtml(String(v));
+        }
+        if (key === "Gesamtlänge") return formatRiemenCombined(details, "gesamtlänge");
+        if (key === "Innenheben") return formatRiemenCombined(details, "innenheben");
+        if (key === "seiten_unterschiedlich") {
+          const v = getRiemenDifferent(details);
+          if (v === null) return "–";
+          return normalizeTruthy(v)
+            ? '<span class="state-warn">Ja</span>'
+            : '<span class="state-good">Nein</span>';
+        }
+        if (key === "griff_verstellbar") {
+          const v = getRiemenGripAdjustable(details);
+          if (v === null) return "–";
+          return normalizeTruthy(v)
+            ? '<span class="bool-yes">Ja</span>'
+            : '<span class="bool-no">Nein</span>';
+        }
+        if (key === "defekt") {
+          const v = getDetailValue(details, ["defekt"]);
+          return formatDefektValue(v, category);
+        }
+      }
+
+      if (key === "schuhe") return formatShoesValue(value);
+      if (key === "defekt") return formatDefektValue(value, category);
+
+      if (value === null || value === undefined || value === "") return "–";
+
+      if (typeof value === "boolean") {
+        return value ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
+      }
+
+      if (Array.isArray(value)) {
+        if (!value.length) return "–";
+        return escapeHtml(value.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", "));
+      }
+
+      if (typeof value === "object") {
+        const entries = Object.entries(value);
+        if (!entries.length) return "–";
+        return entries
+          .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}`)
+          .join("<br>");
+      }
+
+      return escapeHtml(String(value));
     }
 
     function getDetailKeys(items, category) {
       const detailKeysSet = new Set();
 
       for (const item of items) {
-        for (const [key, value] of Object.entries(item.details || {})) {
+        const details = category === "Boote"
+          ? normalizeBoatDetails(item.details || {})
+          : (item.details || {});
+
+        for (const [key, value] of Object.entries(details)) {
           if (key === "defekt") {
             detailKeysSet.add(key);
             continue;
@@ -857,6 +1295,8 @@
           "steuermann_verfuegbar"
         ];
 
+        detailKeys = [...new Set([...detailKeys, ...preferred])];
+
         detailKeys.sort((a, b) => {
           const ai = preferred.indexOf(a);
           const bi = preferred.indexOf(b);
@@ -868,50 +1308,23 @@
 
         detailKeys = detailKeys.filter(key => key !== "plaetze");
       } else if (category === "Skulls") {
-        const preferred = [
+        detailKeys = [
           "Blattform",
           "Schafttyp",
           "Gesamtlänge",
           "Innenheben",
           "defekt"
         ];
-
-        detailKeys.sort((a, b) => {
-          const ai = preferred.indexOf(a);
-          const bi = preferred.indexOf(b);
-          if (ai >= 0 && bi >= 0) return ai - bi;
-          if (ai >= 0) return -1;
-          if (bi >= 0) return 1;
-          return a.localeCompare(b, "de");
-        });
       } else if (category === "Riemen") {
-        const preferred = [
-          "laenge_steuerbord",
-          "laenge_backbord",
-          "unterschiedlich",
+        detailKeys = [
+          "Blattform",
+          "Schaft",
+          "Gesamtlänge",
+          "Innenheben",
+          "seiten_unterschiedlich",
+          "griff_verstellbar",
           "defekt"
         ];
-
-        const aliases = {
-          laenge_steuerbord: ["laenge_steuerbord", "länge_steuerbord", "steuerbord", "steuerbord_laenge", "steuerbord_länge"],
-          laenge_backbord: ["laenge_backbord", "länge_backbord", "backbord", "backbord_laenge", "backbord_länge"],
-          unterschiedlich: ["unterschiedlich", "laengen_unterschiedlich", "längen_unterschiedlich", "unterschied"],
-          defekt: ["defekt"]
-        };
-
-        const aliasIndex = (key) => {
-          for (let i = 0; i < preferred.length; i++) {
-            if ((aliases[preferred[i]] || []).includes(key)) return i;
-          }
-          return 999;
-        };
-
-        detailKeys.sort((a, b) => {
-          const ai = aliasIndex(a);
-          const bi = aliasIndex(b);
-          if (ai !== bi) return ai - bi;
-          return a.localeCompare(b, "de");
-        });
       } else {
         detailKeys.sort((a, b) => a.localeCompare(b, "de"));
       }
@@ -921,6 +1334,7 @@
 
     function prettyColumnName(key) {
       const map = {
+        Bootsform: "Bootsform",
         laenge_steuerbord: "Länge Steuerbord",
         "länge_steuerbord": "Länge Steuerbord",
         steuerbord_laenge: "Länge Steuerbord",
@@ -929,21 +1343,48 @@
         "länge_backbord": "Länge Backbord",
         backbord_laenge: "Länge Backbord",
         "backbord_länge": "Länge Backbord",
-        unterschiedlich: "Unterschiedlich",
-        laengen_unterschiedlich: "Unterschiedlich",
-        "längen_unterschiedlich": "Unterschiedlich",
         steuermann_verfuegbar: "Steuermann verfügbar",
         huelle_vorhanden: "Hülle vorhanden",
         huelle_notiz: "Hülle Notiz",
         aktueller_nutzer: "Aktueller Nutzer",
-        gewicht_kg: "Gewicht kg"
+        gewicht_kg: "Gewicht kg",
+        Schafttyp: "Schaft",
+        Schaft: "Schaft",
+        schaft: "Schaft",
+        seiten_unterschiedlich: "Seiten unterschiedlich",
+        griff_verstellbar: "Griff verstellbar",
+        defekt: "Defekt"
       };
       return map[key] || key;
     }
 
+    function getEditableRawValue(item, key, category) {
+      const details = item.details || {};
+
+      if (category === "Boote") {
+        return getBoatValue(details, key);
+      }
+
+      if (category === "Skulls") {
+        return getSkullValue(details, key);
+      }
+
+      if (category === "Riemen") {
+        if (key === "Blattform") return getRiemenBlattform(details);
+        if (key === "Schaft") return getRiemenSchaft(details);
+        if (key === "Gesamtlänge") return getRiemenSideValues(details, "gesamtlänge");
+        if (key === "Innenheben") return getRiemenSideValues(details, "innenheben");
+        if (key === "seiten_unterschiedlich") return getRiemenDifferent(details);
+        if (key === "griff_verstellbar") return getRiemenGripAdjustable(details);
+        if (key === "defekt") return getDetailValue(details, ["defekt"]);
+      }
+
+      return item.details?.[key];
+    }
+
     function renderEditableCell(item, key, category) {
-      const rawValue = item.details?.[key];
-      const formattedValue = formatValue(rawValue, key, category);
+      const rawValue = getEditableRawValue(item, key, category);
+      const formattedValue = formatValue(rawValue, key, category, item);
 
       if (!editMode || !isAdmin) {
         return `<td>${formattedValue}</td>`;
@@ -963,6 +1404,175 @@
       `;
     }
 
+    function getSortValue(row, field) {
+      const details = row.details || {};
+
+      switch (field) {
+        case "name":
+          return row.name || "";
+        case "standort":
+          return row.standort || "";
+        case "kategorie":
+          return row.kategorie || "";
+        case "bootsform":
+          return row.kategorie === "Boote"
+            ? (getBoatValue(details, "Bootsform") || "")
+            : (getDetailValue(details, ["Bootsform", "bootsform"]) || "");
+        case "blattform":
+          return getDetailValue(details, ["blattform", "Blattform"]) || "";
+        case "schaft":
+          return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]) || "";
+        case "gewicht":
+          return row.kategorie === "Boote"
+            ? (getBoatValue(details, "gewicht_kg") || "")
+            : (getDetailValue(details, ["gewicht_kg", "gewicht"]) || "");
+        case "plaetze":
+          return row.kategorie === "Boote"
+            ? (Number(getBoatValue(details, "plaetze")) || 0)
+            : (Number(getDetailValue(details, ["plaetze"])) || 0);
+        case "aktueller_nutzer":
+          return row.kategorie === "Boote"
+            ? (getBoatValue(details, "aktueller_nutzer") || "")
+            : (getDetailValue(details, ["aktueller_nutzer"]) || "");
+        default:
+          return "";
+      }
+    }
+
+    function compareSortValues(a, b, direction) {
+      const dir = direction === "desc" ? -1 : 1;
+
+      const aNum = typeof a === "number" ? a : Number(String(a).replace(",", "."));
+      const bNum = typeof b === "number" ? b : Number(String(b).replace(",", "."));
+      const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && a !== "" && b !== "";
+
+      if (bothNumeric) {
+        return (aNum - bNum) * dir;
+      }
+
+      return String(a).localeCompare(String(b), "de", { numeric: true, sensitivity: "base" }) * dir;
+    }
+
+    function sortRows(rows) {
+      if (currentSort.field === "default") {
+        return [...rows].sort((a, b) => {
+          const ai = categorySortIndex(a.kategorie || "Unbekannt");
+          const bi = categorySortIndex(b.kategorie || "Unbekannt");
+          if (ai !== bi) return ai - bi;
+
+          if (a.kategorie === "Boote" && b.kategorie === "Boote") {
+            const aPlaetze = Number(getBoatValue(a.details || {}, "plaetze")) || 0;
+            const bPlaetze = Number(getBoatValue(b.details || {}, "plaetze")) || 0;
+            if (aPlaetze !== bPlaetze) return aPlaetze - bPlaetze;
+          }
+
+          return String(a.name || "").localeCompare(String(b.name || ""), "de");
+        });
+      }
+
+      return [...rows].sort((a, b) => {
+        const valA = getSortValue(a, currentSort.field);
+        const valB = getSortValue(b, currentSort.field);
+        const primary = compareSortValues(valA, valB, currentSort.direction);
+        if (primary !== 0) return primary;
+
+        const catCompare = compareSortValues(a.kategorie || "", b.kategorie || "", "asc");
+        if (catCompare !== 0) return catCompare;
+
+        return compareSortValues(a.name || "", b.name || "", "asc");
+      });
+    }
+
+    function renderAnchors(categories) {
+      if (!categories.length) {
+        els.categoryAnchors.innerHTML = '<span class="muted">Keine Kategorien vorhanden</span>';
+        return;
+      }
+
+      els.categoryAnchors.innerHTML = categories.map(category => {
+        const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.Unbekannt;
+        return `<a class="anchor-pill" href="#cat-${slugify(category)}" style="box-shadow: inset 0 0 0 1px ${color}55;">${escapeHtml(category)}</a>`;
+      }).join("");
+    }
+
+    function resetStickyOverlay() {
+      els.stickyOverlay.classList.remove("active");
+      els.stickyCategoryName.textContent = "–";
+      els.stickyCategoryMeta.textContent = "Keine Kategorie sichtbar";
+      els.stickyHeadWrap.classList.remove("show");
+      els.stickyHeadTable.innerHTML = "";
+    }
+
+    function syncStickyHeaderWithActiveSection() {
+      const sections = [...document.querySelectorAll("[data-category-section]")];
+      if (!sections.length) {
+        resetStickyOverlay();
+        return;
+      }
+
+      const overlayRect = els.stickyOverlay.getBoundingClientRect();
+      const fallbackTop = 80;
+      const triggerY = (overlayRect.height ? overlayRect.bottom : fallbackTop) + 12;
+
+      let activeSection = null;
+      let shouldShowOverlay = false;
+
+      for (const section of sections) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= triggerY && rect.bottom > fallbackTop) {
+          activeSection = section;
+          shouldShowOverlay = true;
+        }
+      }
+
+      if (!shouldShowOverlay || !activeSection) {
+        resetStickyOverlay();
+        return;
+      }
+
+      els.stickyOverlay.classList.add("active");
+
+      const category = activeSection.dataset.categoryName || "–";
+      const count = Number(activeSection.dataset.categoryCount || 0);
+
+      els.stickyCategoryName.textContent = category;
+      els.stickyCategoryMeta.textContent = `${count} Einträge`;
+
+      const activeTableWrap = activeSection.querySelector(".table-wrap");
+      const activeTable = activeSection.querySelector("table");
+      const activeHeadRow = activeTable?.querySelector("thead");
+      const activeHeadCells = activeTable ? [...activeTable.querySelectorAll("thead th")] : [];
+
+      if (!activeTableWrap || !activeTable || !activeHeadRow || !activeHeadCells.length) {
+        els.stickyHeadWrap.classList.remove("show");
+        els.stickyHeadTable.innerHTML = "";
+        return;
+      }
+
+      const widths = activeHeadCells.map(cell => Math.max(60, Math.round(cell.getBoundingClientRect().width)));
+      const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+      const colgroup = `<colgroup>${widths.map(width => `<col style="width:${width}px">`).join("")}</colgroup>`;
+
+      els.stickyHeadTable.style.width = `${Math.max(totalWidth, activeTableWrap.clientWidth)}px`;
+      els.stickyHeadTable.innerHTML = `${colgroup}${activeHeadRow.outerHTML}`;
+      els.stickyHeadWrap.classList.add("show");
+
+      const syncScroll = () => {
+        els.stickyHeadScroller.scrollLeft = activeTableWrap.scrollLeft;
+      };
+
+      syncScroll();
+      activeTableWrap.onscroll = syncScroll;
+    }
+
+    function requestStickySync() {
+      if (stickyRaf) cancelAnimationFrame(stickyRaf);
+      stickyRaf = requestAnimationFrame(() => {
+        syncStickyHeaderWithActiveSection();
+        stickyRaf = null;
+      });
+    }
+
     function renderTables(rows) {
       if (!rows.length) {
         els.categoryTables.innerHTML = `
@@ -972,17 +1582,23 @@
           </section>
         `;
         renderAnchors([]);
+        requestStickySync();
         return;
       }
 
+      const sortedRows = sortRows(rows);
+
       const grouped = new Map();
-      for (const row of rows) {
+      for (const row of sortedRows) {
         const key = row.kategorie || "Unbekannt";
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key).push(row);
       }
 
       const orderedCategories = [...grouped.keys()].sort((a, b) => {
+        if (currentSort.field === "kategorie") {
+          return compareSortValues(a, b, currentSort.direction);
+        }
         const ai = categorySortIndex(a);
         const bi = categorySortIndex(b);
         if (ai !== bi) return ai - bi;
@@ -992,18 +1608,24 @@
       renderAnchors(orderedCategories);
 
       els.categoryTables.innerHTML = orderedCategories.map(category => {
-        const items = sortCategoryRows(grouped.get(category) || [], category);
+        const items = grouped.get(category) || [];
         const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.Unbekannt;
         const detailKeys = getDetailKeys(items, category);
 
         return `
-          <section class="card" id="cat-${slugify(category)}">
+          <section
+            class="card"
+            id="cat-${slugify(category)}"
+            data-category-section
+            data-category-name="${escapeHtml(category)}"
+            data-category-count="${items.length}"
+          >
             <details class="category-details" open>
               <summary>
                 <div class="summary-row">
                   <div class="summary-left">
                     <div class="section-title">${escapeHtml(category)}</div>
-                    <div class="section-subtitle">${items.length} Einträge${category === "Boote" ? " · sortiert nach Sitzplätzen" : ""}</div>
+                    <div class="section-subtitle">${items.length} Einträge${category === "Boote" ? " · sortiert nach Sitzplätzen im Standardmodus" : ""}</div>
                   </div>
                   <div class="summary-right">
                     <span class="badge" style="box-shadow: inset 0 0 0 1px ${color}55;">${items.length}</span>
@@ -1038,12 +1660,15 @@
           </section>
         `;
       }).join("");
+
+      requestStickySync();
+      setTimeout(requestStickySync, 60);
     }
 
     function updateKpis(rows) {
       const categories = new Set(rows.map(r => r.kategorie || "Unbekannt"));
       const boats = rows.filter(r => r.kategorie === "Boote");
-      const boatsWithDetails = boats.filter(r => Number.isFinite(Number(r.details?.plaetze)) && Number(r.details?.plaetze) > 0);
+      const boatsWithDetails = boats.filter(r => Number.isFinite(Number(getBoatValue(r.details || {}, "plaetze"))) && Number(getBoatValue(r.details || {}, "plaetze")) > 0);
 
       els.kpiMaterial.textContent = rows.length;
       els.kpiCategories.textContent = categories.size;
@@ -1060,9 +1685,14 @@
       updateKpis(filtered);
       renderTables(filtered);
 
+      const sortLabel = currentSort.field === "default"
+        ? "Standard"
+        : `${els.sortFieldSelect.options[els.sortFieldSelect.selectedIndex].text} (${currentSort.direction === "asc" ? "aufsteigend" : "absteigend"})`;
+
       setStatus(
         `Aktualisiert: ${new Date().toLocaleString("de-DE")}\n` +
-        `Einträge sichtbar: ${filtered.length} von ${allRows.length}`
+        `Einträge sichtbar: ${filtered.length} von ${allRows.length}\n` +
+        `Sortierung: ${sortLabel}`
       );
     }
 
@@ -1096,7 +1726,12 @@
       els.adminInfo.textContent = isAdmin
         ? `Eingeloggt als Admin`
         : `Eingeloggt, aber kein Admin`;
-      if (isAdmin) els.adminInfo.classList.add("admin-on");
+
+      if (isAdmin) {
+        els.adminInfo.classList.add("admin-on");
+      } else {
+        els.adminInfo.classList.remove("admin-on");
+      }
     }
 
     function openEditModal(ctx) {
@@ -1129,15 +1764,6 @@
     }
 
     async function writeHistory({ materialId, fieldKey, beforeValue, afterValue }) {
-      // WICHTIG:
-      // Diese Insert-Struktur bitte an dein echtes Schema von material_history anpassen.
-      // Falls die Tabelle andere Spaltennamen hat, hier ändern.
-      //
-      // Beispiel-Spalten, von denen dieser Code ausgeht:
-      // material_id, field_key, old_value, new_value, changed_by, changed_at
-      //
-      // Wenn du diese Tabelle noch nicht passend hast, kannst du den Block auch erstmal auskommentieren.
-
       const historyPayload = {
         material_id: materialId,
         field_key: fieldKey,
@@ -1159,7 +1785,7 @@
     async function saveEdit() {
       if (!currentEditContext || !currentUser || !isAdmin) return;
 
-      const { materialId, key, currentValue } = currentEditContext;
+      const { materialId, key, currentValue, category } = currentEditContext;
       const rawInput = els.editValueInput.value;
       const parsedValue = parseEditorValue(rawInput);
 
@@ -1170,10 +1796,61 @@
       }
 
       const row = allRows[rowIndex];
-      const prevDetails = structuredClone(row.details || {});
       const nextDetails = structuredClone(row.details || {});
 
-      nextDetails[key] = parsedValue;
+      if (category === "Boote") {
+        nextDetails[key] = parsedValue;
+
+        if (key === "steuermann_verfuegbar") {
+          delete nextDetails["steuermann_verfügbar"];
+          delete nextDetails["steuermann verfügbar"];
+          delete nextDetails["steuermann"];
+          delete nextDetails["cox"];
+          delete nextDetails["cox_available"];
+          delete nextDetails["cox_verfuegbar"];
+          nextDetails.steuermann_verfuegbar = parsedValue;
+        }
+      } else if (category === "Skulls") {
+        if (key === "Blattform") {
+          nextDetails.blattform = parsedValue;
+        } else if (key === "Schafttyp") {
+          nextDetails.schafttyp = parsedValue;
+        } else if (key === "Gesamtlänge") {
+          nextDetails.gesamtlaenge_cm = parsedValue;
+        } else if (key === "Innenheben") {
+          nextDetails.innenhebel_cm = parsedValue;
+        } else if (key === "defekt") {
+          nextDetails.defekt = parsedValue;
+        } else {
+          nextDetails[key] = parsedValue;
+        }
+      } else if (category === "Riemen") {
+        if (key === "Blattform") {
+          nextDetails.blattform = parsedValue;
+        } else if (key === "Schaft") {
+          nextDetails.schafttyp = parsedValue;
+        } else if (key === "Gesamtlänge" && parsedValue && typeof parsedValue === "object") {
+          nextDetails.backbord = nextDetails.backbord || {};
+          nextDetails.steuerbord = nextDetails.steuerbord || {};
+          nextDetails.backbord.gesamtlaenge_cm = parsedValue.backbord ?? "";
+          nextDetails.steuerbord.gesamtlaenge_cm = parsedValue.steuerbord ?? "";
+        } else if (key === "Innenheben" && parsedValue && typeof parsedValue === "object") {
+          nextDetails.backbord = nextDetails.backbord || {};
+          nextDetails.steuerbord = nextDetails.steuerbord || {};
+          nextDetails.backbord.innenhebel_cm = parsedValue.backbord ?? "";
+          nextDetails.steuerbord.innenhebel_cm = parsedValue.steuerbord ?? "";
+        } else if (key === "seiten_unterschiedlich") {
+          nextDetails.unterschiedliche_seiten = parsedValue;
+        } else if (key === "griff_verstellbar") {
+          nextDetails.griff_verstellbar = parsedValue;
+        } else if (key === "defekt") {
+          nextDetails.defekt = parsedValue;
+        } else {
+          nextDetails[key] = parsedValue;
+        }
+      } else {
+        nextDetails[key] = parsedValue;
+      }
 
       try {
         els.saveEditBtn.disabled = true;
@@ -1187,12 +1864,16 @@
           afterValue: parsedValue
         });
 
+        const normalizedDetails = row.kategorie === "Boote"
+          ? normalizeBoatDetails(nextDetails)
+          : nextDetails;
+
         allRows[rowIndex] = {
           ...row,
-          details: nextDetails,
+          details: normalizedDetails,
           searchText: buildSearchText({
             ...row,
-            details: nextDetails
+            details: normalizedDetails
           })
         };
 
@@ -1216,6 +1897,7 @@
         setStatus("Lade Materialübersicht...");
         els.categoryTables.innerHTML = "";
         els.categoryAnchors.innerHTML = "";
+        resetStickyOverlay();
 
         await ensureUserAndRole();
 
@@ -1239,11 +1921,17 @@
         );
 
         allRows = material.map(row => {
+          const rawDetails = detailsByMaterialId[row.id] || {};
+          const normalizedDetails = row.kategorie === "Boote"
+            ? normalizeBoatDetails(rawDetails)
+            : rawDetails;
+
           const mapped = {
             ...row,
             standort: normalizeStandortKey(row.standort),
-            details: detailsByMaterialId[row.id] || {}
+            details: normalizedDetails
           };
+
           return {
             ...mapped,
             searchText: buildSearchText(mapped)
@@ -1252,6 +1940,13 @@
           const ai = categorySortIndex(a.kategorie || "Unbekannt");
           const bi = categorySortIndex(b.kategorie || "Unbekannt");
           if (ai !== bi) return ai - bi;
+
+          if (a.kategorie === "Boote" && b.kategorie === "Boote") {
+            const aPlaetze = Number(getBoatValue(a.details || {}, "plaetze")) || 0;
+            const bPlaetze = Number(getBoatValue(b.details || {}, "plaetze")) || 0;
+            if (aPlaetze !== bPlaetze) return aPlaetze - bPlaetze;
+          }
+
           return String(a.name || "").localeCompare(String(b.name || ""), "de");
         });
 
@@ -1264,6 +1959,23 @@
 
     els.reloadBtn.addEventListener("click", loadPage);
     els.searchInput.addEventListener("input", applyFilter);
+
+    els.sortFieldSelect.addEventListener("change", () => {
+      currentSort.field = els.sortFieldSelect.value;
+      applyFilter();
+    });
+
+    els.sortDirectionSelect.addEventListener("change", () => {
+      currentSort.direction = els.sortDirectionSelect.value;
+      applyFilter();
+    });
+
+    els.resetSortBtn.addEventListener("click", () => {
+      currentSort = { field: "default", direction: "asc" };
+      els.sortFieldSelect.value = "default";
+      els.sortDirectionSelect.value = "asc";
+      applyFilter();
+    });
 
     els.editModeBtn.addEventListener("click", () => {
       if (!isAdmin) return;
@@ -1285,6 +1997,8 @@
       });
     });
 
+    els.categoryTables.addEventListener("toggle", requestStickySync, true);
+
     els.closeEditModalBtn.addEventListener("click", closeEditModal);
     els.cancelEditBtn.addEventListener("click", closeEditModal);
     els.saveEditBtn.addEventListener("click", saveEdit);
@@ -1294,6 +2008,9 @@
         closeEditModal();
       }
     });
+
+    window.addEventListener("scroll", requestStickySync, { passive: true });
+    window.addEventListener("resize", requestStickySync);
 
     loadPage();
   </script>

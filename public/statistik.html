@@ -512,23 +512,26 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { BOOT_CAPACITY_BY_STANDORT } from "../src/lib/schema.js";
+
     const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
     const SUPABASE_ANON_KEY =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
-
-    const BOOT_CAPACITY_BY_STANDORT = {
-      BRG: { 1: 2, 2: 2, 4: 2, 8: 2 },
-      SRV: { 1: 21, 2: 10, 4: 4, 8: 1 },
-      Fühlingen: { 1: 10, 2: 6, 4: 5, 8: 2 },
-      Extern: { 1: 30, 2: 30, 4: 30, 8: 10 },
-    };
 
     function normalizeStandortKey(s) {
       return String(s || "")
         .trim()
         .replace(/\s+/g, " ")
         .replace(/Fuehlingen/i, "Fühlingen");
+    }
+
+    function isUnlimitedCapacity(capacityConfig) {
+      return capacityConfig === Infinity;
+    }
+
+    function sumObjectValues(obj) {
+      return Object.values(obj || {}).reduce((sum, n) => sum + Number(n || 0), 0);
     }
 
     if (!window.supabase) {
@@ -624,10 +627,6 @@
       return sortDescRows(map);
     }
 
-    function sumObjectValues(obj) {
-      return Object.values(obj || {}).reduce((sum, n) => sum + Number(n || 0), 0);
-    }
-
     function buildDailySeries(history) {
       const map = new Map();
       for (const entry of history) {
@@ -697,8 +696,12 @@
       const topStandort = standortRows[0];
       const topRoute = routeRows[0];
       const topUser = userRows[0];
-      const highestCapacity = [...capacityRows].sort((a, b) => b.percent - a.percent)[0];
-      const lowestCapacity = [...capacityRows].sort((a, b) => a.percent - b.percent)[0];
+
+      const finiteCapacityRows = capacityRows.filter(row => !row.isUnlimited);
+      const highestCapacity = [...finiteCapacityRows].sort((a, b) => b.percent - a.percent)[0];
+      const lowestCapacity = [...finiteCapacityRows].sort((a, b) => a.percent - b.percent)[0];
+      const unlimitedCapacityRows = capacityRows.filter(row => row.isUnlimited);
+
       const seatCoverage = boote.length > 0 ? boatsWithSeats / boote.length : 0;
       const avgMovesPerActiveUser = userRows.length > 0 ? history.length / userRows.length : 0;
 
@@ -718,6 +721,11 @@
 
       if (lowestCapacity) {
         insights.push(`Das größte freie Kapazitätspotenzial liegt aktuell bei <strong>${escapeHtml(lowestCapacity.label)}</strong>, dort sind nur <strong>${lowestCapacity.percent}%</strong> der hinterlegten Plätze belegt.`);
+      }
+
+      if (unlimitedCapacityRows.length) {
+        const labels = unlimitedCapacityRows.map(row => row.label).join(", ");
+        insights.push(`Für <strong>${escapeHtml(labels)}</strong> ist die Kapazität als <strong>unbegrenzt</strong> hinterlegt.`);
       }
 
       if (topRoute) {
@@ -830,13 +838,27 @@
             },
             {
               label: "Kapazität gesamt",
-              data: capacityRows.map(r => r.total),
+              data: capacityRows.map(r => r.isUnlimited ? null : r.total),
               backgroundColor: "#243a5f"
             }
           ]
         },
         options: commonChartOptions({
-          plugins: { legend: { labels: { color: "#eef4ff" } } }
+          plugins: {
+            legend: { labels: { color: "#eef4ff" } },
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  const row = capacityRows[context.dataIndex];
+                  const datasetLabel = context.dataset.label || "";
+                  if (datasetLabel === "Kapazität gesamt" && row?.isUnlimited) {
+                    return "Kapazität gesamt: unbegrenzt";
+                  }
+                  return `${datasetLabel}: ${context.raw ?? "–"}`;
+                }
+              }
+            }
+          }
         })
       });
 
@@ -910,7 +932,7 @@
     }
 
     function commonChartOptions(extra = {}) {
-      return {
+      const baseOptions = {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
@@ -934,8 +956,20 @@
             borderColor: "rgba(255,255,255,0.08)",
             borderWidth: 1
           }
+        }
+      };
+
+      return {
+        ...baseOptions,
+        ...extra,
+        plugins: {
+          ...baseOptions.plugins,
+          ...(extra.plugins || {})
         },
-        ...extra
+        scales: {
+          ...baseOptions.scales,
+          ...(extra.scales || {})
+        }
       };
     }
 
@@ -957,7 +991,11 @@
 
       const datasets = seatClasses.map(seats => ({
         label: `${seats}er`,
-        data: locations.map(loc => boatsWithSeatInfo.filter(b => normalizeStandortKey(b.standort) === loc && Number(b.seats) === seats).length),
+        data: locations.map(loc =>
+          boatsWithSeatInfo.filter(
+            b => normalizeStandortKey(b.standort) === loc && Number(b.seats) === seats
+          ).length
+        ),
         backgroundColor: colorMap[seats]
       }));
 
@@ -991,6 +1029,7 @@
             .order("geändert_am", { ascending: false }),
         ]);
 
+        console.log("BOOT_CAPACITY_BY_STANDORT", BOOT_CAPACITY_BY_STANDORT);
         console.log("materialRes", materialRes);
         console.log("detailsRes", detailsRes);
         console.log("historyRes", historyRes);
@@ -1050,15 +1089,19 @@
           const boatsAtLocation = boote.filter(
             b => normalizeStandortKey(b.standort) === normalizeStandortKey(standort)
           );
-          const total = sumObjectValues(BOOT_CAPACITY_BY_STANDORT[standort]);
+
+          const capacityConfig = BOOT_CAPACITY_BY_STANDORT[standort];
           const used = boatsAtLocation.length;
-          const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+          const unlimited = isUnlimitedCapacity(capacityConfig);
+          const total = unlimited ? null : sumObjectValues(capacityConfig);
+          const percent = unlimited ? 0 : (total > 0 ? Math.round((used / total) * 100) : 0);
 
           return {
             label: standort,
             value: used,
             total,
-            percent
+            percent,
+            isUnlimited: unlimited
           };
         });
 

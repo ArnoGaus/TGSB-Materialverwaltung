@@ -118,7 +118,9 @@ export default function DetailsModal({
     item.bundle_id &&
     (item.kategorie === "Skulls" || item.kategorie === "Riemen");
 
-  const fields = isRiemen ? riemenMetaFields : rawFields;
+  const fields = (isRiemen ? riemenMetaFields : rawFields).filter(
+    (f) => !["backbord", "steuerbord"].includes(f.key)
+  );
 
   return (
     <div className="modal-overlay">

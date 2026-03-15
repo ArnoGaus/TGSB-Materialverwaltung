@@ -113,9 +113,9 @@ export function uid() {
 
 export const BOOT_CAPACITY_BY_STANDORT = {
   BRG: { 1: 2, 2: 2, 4: 2, 8: 2 },
-  SRV: { 1: 21, 2: 10, 4: 4, 8: 1 },
+  SRV: { 1: 25, 2: 11, 4: 4, 8: 1 },
   Fühlingen: { 1: 10, 2: 6, 4: 5, 8: 2 },
-  Extern: { 1: 30, 2: 30, 4: 30, 8: 10 },
+  Extern: Infinity,
 };
 
 // Normalisiert Standortnamen aus der DB auf deine Keys
