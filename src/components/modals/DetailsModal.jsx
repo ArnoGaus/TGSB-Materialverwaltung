@@ -7,7 +7,7 @@ export default function DetailsModal({
   values,
   onClose,
   onSave,
-  canEdit = true,
+  canEdit = false,
   isAdmin = false,
   onSaveName,
   onRenameBundleBaseName,
@@ -24,7 +24,6 @@ export default function DetailsModal({
 
   const riemenMetaFields = rawFields.filter((f) => {
     if (!isRiemen) return true;
-
     return ![
       "unterschiedliche_seiten",
       "unterschiedliche_laenge",
@@ -37,10 +36,14 @@ export default function DetailsModal({
     ].includes(f.key);
   });
 
-  useEffect(() => setLocal(values || {}), [values]);
+  useEffect(() => {
+    setLocal(values || {});
+  }, [values]);
+
   useEffect(() => {
     setNameEdit(item?.name || "");
     setBundleRename("");
+    setEdit(false);
   }, [item?.id, item?.name]);
 
   function setField(key, val, type) {
@@ -113,14 +116,8 @@ export default function DetailsModal({
 
   if (!item) return null;
 
-  const canRenameBundle =
-    isAdmin &&
-    item.bundle_id &&
-    (item.kategorie === "Skulls" || item.kategorie === "Riemen");
-
-  const fields = (isRiemen ? riemenMetaFields : rawFields).filter(
-    (f) => !["backbord", "steuerbord"].includes(f.key)
-  );
+  const canRenameBundle = isAdmin && item.bundle_id && (item.kategorie === "Skulls" || item.kategorie === "Riemen");
+  const fields = (isRiemen ? riemenMetaFields : rawFields).filter((f) => !["backbord", "steuerbord"].includes(f.key));
 
   return (
     <div className="modal-overlay">
@@ -144,15 +141,11 @@ export default function DetailsModal({
               gap: 10,
             }}
           >
-            <div style={{ fontWeight: 700 }}>Admin: Bearbeiten</div>
+            <div style={{ fontWeight: 700 }}>Admin: Namen verwalten</div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <div style={{ width: 180, opacity: 0.9 }}>Name</div>
-              <input
-                style={{ flex: 1 }}
-                value={nameEdit}
-                onChange={(e) => setNameEdit(e.target.value)}
-              />
+              <input style={{ flex: 1 }} value={nameEdit} onChange={(e) => setNameEdit(e.target.value)} />
               <button
                 className="admin-btn"
                 onClick={async () => {
@@ -176,10 +169,7 @@ export default function DetailsModal({
                 <button
                   className="admin-btn"
                   onClick={async () => {
-                    const ok = await onRenameBundleBaseName?.(
-                      item.bundle_id,
-                      bundleRename
-                    );
+                    const ok = await onRenameBundleBaseName?.(item.bundle_id, bundleRename);
                     if (ok) alert("Satz umbenannt.");
                   }}
                 >
@@ -187,28 +177,24 @@ export default function DetailsModal({
                 </button>
               </div>
             )}
+          </div>
+        )}
 
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              Tipp: Details unten mit „Ändern“ bearbeiten. Name/Bundlename hier ist
-              extra.
-            </div>
+        {!canEdit && (
+          <div className="readonly-note" style={{ marginTop: 12 }}>
+            Besucher können Details nur ansehen. Änderungen sind für User und Admins erlaubt.
           </div>
         )}
 
         {fields.length === 0 && !isRiemen ? (
-          <p style={{ marginTop: 16, opacity: 0.7 }}>
-            Für diese Kategorie sind keine Info-Felder definiert.
-          </p>
+          <p style={{ marginTop: 16, opacity: 0.7 }}>Für diese Kategorie sind keine Info-Felder definiert.</p>
         ) : (
           <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
             {fields.map((f) => {
               const current = local?.[f.key];
 
               return (
-                <div
-                  key={f.key}
-                  style={{ display: "flex", gap: 10, alignItems: "center" }}
-                >
+                <div key={f.key} style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <div style={{ width: 180, opacity: 0.9 }}>
                     {f.label}
                     {f.unit ? <span style={{ opacity: 0.7 }}> ({f.unit})</span> : null}
@@ -217,19 +203,13 @@ export default function DetailsModal({
                   {!edit ? (
                     <div style={{ flex: 1 }}>
                       {f.type === "bool" ? (
-                        current === undefined || current === false ? (
-                          "Nein"
-                        ) : (
-                          "Ja"
-                        )
+                        current === undefined || current === false ? "Nein" : "Ja"
                       ) : current === undefined ? (
                         <span style={{ opacity: 0.6 }}>–</span>
                       ) : (
                         <>
                           {String(current)}
-                          {f.unit ? (
-                            <span style={{ opacity: 0.7 }}> {f.unit}</span>
-                          ) : null}
+                          {f.unit ? <span style={{ opacity: 0.7 }}> {f.unit}</span> : null}
                         </>
                       )}
                     </div>
@@ -274,12 +254,7 @@ export default function DetailsModal({
                         <input
                           type="checkbox"
                           checked={!!current}
-                          onChange={(e) =>
-                            setLocal((prev) => ({
-                              ...prev,
-                              [f.key]: e.target.checked,
-                            }))
-                          }
+                          onChange={(e) => setLocal((prev) => ({ ...prev, [f.key]: e.target.checked }))}
                         />
                       )}
                     </div>
@@ -303,96 +278,42 @@ export default function DetailsModal({
                 {!edit ? (
                   <>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div style={{ width: 180, opacity: 0.9 }}>
-                        Seiten unterschiedlich
-                      </div>
+                      <div style={{ width: 180, opacity: 0.9 }}>Seiten unterschiedlich</div>
                       <div>{unterschiedlicheSeiten ? "Ja" : "Nein"}</div>
                     </div>
 
                     {!unterschiedlicheSeiten ? (
                       <>
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge</div>
-                          <div>
-                            {local?.backbord?.gesamtlaenge_cm ??
-                              local?.steuerbord?.gesamtlaenge_cm ?? (
-                                <span style={{ opacity: 0.6 }}>–</span>
-                              )}{" "}
-                            cm
-                          </div>
+                          <div>{local?.backbord?.gesamtlaenge_cm ?? local?.steuerbord?.gesamtlaenge_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <div style={{ width: 180, opacity: 0.9 }}>Innenhebel</div>
-                          <div>
-                            {local?.backbord?.innenhebel_cm ??
-                              local?.steuerbord?.innenhebel_cm ?? (
-                                <span style={{ opacity: 0.6 }}>–</span>
-                              )}{" "}
-                            cm
-                          </div>
+                          <div>{local?.backbord?.innenhebel_cm ?? local?.steuerbord?.innenhebel_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Gesamtlänge Backbord
-                          </div>
-                          <div>
-                            {local?.backbord?.gesamtlaenge_cm ?? (
-                              <span style={{ opacity: 0.6 }}>–</span>
-                            )}{" "}
-                            cm
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge Backbord</div>
+                          <div>{local?.backbord?.gesamtlaenge_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Gesamtlänge Steuerbord
-                          </div>
-                          <div>
-                            {local?.steuerbord?.gesamtlaenge_cm ?? (
-                              <span style={{ opacity: 0.6 }}>–</span>
-                            )}{" "}
-                            cm
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge Steuerbord</div>
+                          <div>{local?.steuerbord?.gesamtlaenge_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Innenhebel Backbord
-                          </div>
-                          <div>
-                            {local?.backbord?.innenhebel_cm ?? (
-                              <span style={{ opacity: 0.6 }}>–</span>
-                            )}{" "}
-                            cm
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Innenhebel Backbord</div>
+                          <div>{local?.backbord?.innenhebel_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Innenhebel Steuerbord
-                          </div>
-                          <div>
-                            {local?.steuerbord?.innenhebel_cm ?? (
-                              <span style={{ opacity: 0.6 }}>–</span>
-                            )}{" "}
-                            cm
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Innenhebel Steuerbord</div>
+                          <div>{local?.steuerbord?.innenhebel_cm ?? <span style={{ opacity: 0.6 }}>–</span>} cm</div>
                         </div>
                       </>
                     )}
@@ -400,9 +321,7 @@ export default function DetailsModal({
                 ) : (
                   <>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div style={{ width: 180, opacity: 0.9 }}>
-                        Seiten unterschiedlich
-                      </div>
+                      <div style={{ width: 180, opacity: 0.9 }}>Seiten unterschiedlich</div>
                       <input
                         type="checkbox"
                         checked={!!local?.unterschiedliche_seiten}
@@ -418,14 +337,8 @@ export default function DetailsModal({
                             if (!e.target.checked) {
                               next.steuerbord = {
                                 ...(next.steuerbord || {}),
-                                gesamtlaenge_cm:
-                                  next?.backbord?.gesamtlaenge_cm ??
-                                  next?.steuerbord?.gesamtlaenge_cm ??
-                                  "",
-                                innenhebel_cm:
-                                  next?.backbord?.innenhebel_cm ??
-                                  next?.steuerbord?.innenhebel_cm ??
-                                  "",
+                                gesamtlaenge_cm: next?.backbord?.gesamtlaenge_cm ?? next?.steuerbord?.gesamtlaenge_cm ?? "",
+                                innenhebel_cm: next?.backbord?.innenhebel_cm ?? next?.steuerbord?.innenhebel_cm ?? "",
                               };
                             }
 
@@ -437,9 +350,7 @@ export default function DetailsModal({
 
                     {!unterschiedlicheSeiten ? (
                       <>
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge</div>
                           <input
                             style={{ flex: 1 }}
@@ -447,20 +358,11 @@ export default function DetailsModal({
                             min={0}
                             step="any"
                             value={local?.backbord?.gesamtlaenge_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "backbord",
-                                "gesamtlaenge_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("backbord", "gesamtlaenge_cm", e.target.value, "number")}
                           />
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <div style={{ width: 180, opacity: 0.9 }}>Innenhebel</div>
                           <input
                             style={{ flex: 1 }}
@@ -468,108 +370,57 @@ export default function DetailsModal({
                             min={0}
                             step="any"
                             value={local?.backbord?.innenhebel_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "backbord",
-                                "innenhebel_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("backbord", "innenhebel_cm", e.target.value, "number")}
                           />
                         </div>
                       </>
                     ) : (
                       <>
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Gesamtlänge Backbord
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge Backbord</div>
                           <input
                             style={{ flex: 1 }}
                             type="number"
                             min={0}
                             step="any"
                             value={local?.backbord?.gesamtlaenge_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "backbord",
-                                "gesamtlaenge_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("backbord", "gesamtlaenge_cm", e.target.value, "number")}
                           />
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Gesamtlänge Steuerbord
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Gesamtlänge Steuerbord</div>
                           <input
                             style={{ flex: 1 }}
                             type="number"
                             min={0}
                             step="any"
                             value={local?.steuerbord?.gesamtlaenge_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "steuerbord",
-                                "gesamtlaenge_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("steuerbord", "gesamtlaenge_cm", e.target.value, "number")}
                           />
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Innenhebel Backbord
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Innenhebel Backbord</div>
                           <input
                             style={{ flex: 1 }}
                             type="number"
                             min={0}
                             step="any"
                             value={local?.backbord?.innenhebel_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "backbord",
-                                "innenhebel_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("backbord", "innenhebel_cm", e.target.value, "number")}
                           />
                         </div>
 
-                        <div
-                          style={{ display: "flex", gap: 10, alignItems: "center" }}
-                        >
-                          <div style={{ width: 180, opacity: 0.9 }}>
-                            Innenhebel Steuerbord
-                          </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ width: 180, opacity: 0.9 }}>Innenhebel Steuerbord</div>
                           <input
                             style={{ flex: 1 }}
                             type="number"
                             min={0}
                             step="any"
                             value={local?.steuerbord?.innenhebel_cm ?? ""}
-                            onChange={(e) =>
-                              setRiemenSideField(
-                                "steuerbord",
-                                "innenhebel_cm",
-                                e.target.value,
-                                "number"
-                              )
-                            }
+                            onChange={(e) => setRiemenSideField("steuerbord", "innenhebel_cm", e.target.value, "number")}
                           />
                         </div>
                       </>
@@ -596,36 +447,20 @@ export default function DetailsModal({
                           padding: 10,
                         }}
                       >
-                        <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                          Platz {i + 1}
-                        </div>
+                        <div style={{ fontWeight: 700, marginBottom: 6 }}>Platz {i + 1}</div>
 
                         {!edit ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 12,
-                              flexWrap: "wrap",
-                            }}
-                          >
+                          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                             <div style={{ flex: 1 }}>
                               Zustand: <strong>{shoeIndexToState(zustandIdx)}</strong>
                             </div>
                             <div style={{ width: 180 }}>
-                              Größe:{" "}
-                              {shoes[i]?.groesse ?? (
-                                <span style={{ opacity: 0.6 }}>–</span>
-                              )}
+                              Größe: {shoes[i]?.groesse ?? <span style={{ opacity: 0.6 }}>–</span>}
                             </div>
                           </div>
                         ) : (
                           <div style={{ display: "grid", gap: 8 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                              }}
-                            >
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
                               <span style={{ opacity: 0.85 }}>Zustand:</span>
                               <strong>{shoeIndexToState(zustandIdx)}</strong>
                             </div>
@@ -638,39 +473,22 @@ export default function DetailsModal({
                               step="1"
                               value={zustandIdx}
                               list={`${sliderId}-list`}
-                              onChange={(e) =>
-                                setShoe(i, {
-                                  zustand: shoeIndexToState(e.target.value),
-                                })
-                              }
+                              onChange={(e) => setShoe(i, { zustand: shoeIndexToState(e.target.value) })}
                             />
+
                             <datalist id={`${sliderId}-list`}>
                               <option value="0" label="gut" />
                               <option value="1" label="ok" />
                               <option value="2" label="schlecht" />
                             </datalist>
 
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                fontSize: 12,
-                                opacity: 0.8,
-                              }}
-                            >
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.8 }}>
                               <span>gut</span>
                               <span>ok</span>
                               <span>schlecht</span>
                             </div>
 
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 10,
-                                alignItems: "center",
-                                flexWrap: "wrap",
-                              }}
-                            >
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                               <div style={{ width: 120, opacity: 0.85 }}>Größe</div>
                               <input
                                 style={{ width: 140 }}
@@ -679,12 +497,10 @@ export default function DetailsModal({
                                 placeholder="z.B. 42.5"
                                 value={shoes[i]?.groesse ?? ""}
                                 onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === "") return setShoe(i, { groesse: "" });
-                                  const num = Number(v);
-                                  if (!Number.isNaN(num)) {
-                                    setShoe(i, { groesse: num });
-                                  }
+                                  const value = e.target.value;
+                                  if (value === "") return setShoe(i, { groesse: "" });
+                                  const num = Number(value);
+                                  if (!Number.isNaN(num)) setShoe(i, { groesse: num });
                                 }}
                               />
                             </div>
@@ -699,14 +515,7 @@ export default function DetailsModal({
           </div>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 10,
-            marginTop: 18,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
           {!edit ? (
             <>
               {canEdit && <button onClick={() => setEdit(true)}>Ändern</button>}
@@ -740,5 +549,3 @@ export default function DetailsModal({
     </div>
   );
 }
-
-

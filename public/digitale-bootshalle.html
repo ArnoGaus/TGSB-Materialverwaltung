@@ -15,11 +15,9 @@
         --danger: #dc2626;
         --shadow: rgba(0, 0, 0, 0.10);
         --admin: #16df0f;
-
         --modal-bg: #ffffff;
         --modal-text: #111827;
         --modal-shadow: rgba(0, 0, 0, 0.25);
-
         --border: rgba(0, 0, 0, 0.12);
         --border-soft: rgba(0, 0, 0, 0.08);
         --surface: rgba(0, 0, 0, 0.03);
@@ -35,26 +33,17 @@
           --danger: #ef4444;
           --shadow: rgba(0, 0, 0, 0.45);
           --admin: #16df0f;
-
           --modal-bg: #1e293b;
           --modal-text: #f1f5f9;
           --modal-shadow: rgba(0, 0, 0, 0.65);
-
           --border: rgba(255, 255, 255, 0.18);
           --border-soft: rgba(255, 255, 255, 0.12);
           --surface: rgba(255, 255, 255, 0.05);
         }
       }
 
-      body {
-        font-family: Arial, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        margin: 0;
-      }
-
-      input,
-      select {
+      body { font-family: Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+      input, select {
         padding: 8px;
         margin-top: 10px;
         border-radius: 6px;
@@ -64,20 +53,12 @@
       }
 
       input::placeholder { color: var(--secondary-text); }
-
-      button {
-        padding: 8px 12px;
-        cursor: pointer;
-        border: none;
-        border-radius: 6px;
-        background: var(--primary);
-        color: white;
-      }
+      button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 6px; background: var(--primary); color: white; }
       button.delete { background: var(--danger); }
       button.secondary { background: var(--secondary-text); color: white; }
       button.admin-btn { background: var(--admin); color: white; }
+      button:disabled { cursor: not-allowed; opacity: 0.55; }
 
-      /* Layout */
       .bootshalle-container {
         padding: 40px;
         max-width: 1800px;
@@ -86,9 +67,7 @@
         gap: 16px;
       }
 
-      @media (max-width: 900px) {
-        .bootshalle-container { padding: 18px; }
-      }
+      @media (max-width: 900px) { .bootshalle-container { padding: 18px; } }
 
       .bootshalle-card {
         background: var(--card-bg);
@@ -105,33 +84,12 @@
         font-weight: 700;
       }
 
-      .bootshalle-controls {
-        display: flex;
-        gap: 16px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-      }
+      .bootshalle-controls { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+      .bootshalle-grid { display: grid; grid-template-columns: 420px 1fr; gap: 16px; }
+      @media (max-width: 900px) { .bootshalle-grid { grid-template-columns: 1fr; } }
 
-      .bootshalle-grid {
-        display: grid;
-        grid-template-columns: 420px 1fr;
-        gap: 16px;
-      }
-
-      @media (max-width: 900px) {
-        .bootshalle-grid { grid-template-columns: 1fr; }
-      }
-
-      .section-title {
-        font-weight: 900;
-        margin: 0 0 10px;
-      }
-
-      .subtle {
-        font-size: 12px;
-        opacity: 0.8;
-      }
-
+      .section-title { font-weight: 900; margin: 0 0 10px; }
+      .subtle { font-size: 12px; opacity: 0.8; }
       .left-stack { display: grid; gap: 14px; }
 
       .boot-chip {
@@ -142,15 +100,19 @@
         cursor: grab;
         user-select: none;
       }
-      .boot-chip:active { cursor: grabbing; }
+
       .boot-chip.is-selected {
         border-color: var(--admin);
         box-shadow: 0 0 0 3px rgba(22, 223, 15, 0.18);
       }
 
-      .chip-row { display: grid; gap: 10px; }
+      .boot-chip.is-readonly {
+        cursor: default;
+        opacity: 0.75;
+      }
 
-      .counts-list { display: grid; gap: 8px; }
+      .chip-row, .counts-list, .lager-slots { display: grid; gap: 10px; }
+
       .count-item {
         border: 1px solid var(--border);
         border-radius: 12px;
@@ -161,21 +123,13 @@
         gap: 10px;
       }
 
-      /* Lager */
       .lager-group { margin-top: 14px; }
       .lager-group-title { font-weight: 900; margin: 0 0 12px; }
 
-      .lager-row {
-        display: grid;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
+      .lager-row { display: grid; gap: 12px; margin-bottom: 12px; }
       .lager-row.top { grid-template-columns: repeat(3, minmax(260px, 1fr)); }
       .lager-row.bottom { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
-
-      @media (max-width: 1100px) {
-        .lager-row.top, .lager-row.bottom { grid-template-columns: 1fr; }
-      }
+      @media (max-width: 1100px) { .lager-row.top, .lager-row.bottom { grid-template-columns: 1fr; } }
 
       .halle {
         border: 1px solid var(--border);
@@ -197,14 +151,8 @@
       .halle-title { font-weight: 900; }
       .halle-meta { font-size: 12px; opacity: 0.75; }
 
-      .split-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-      @media (max-width: 560px) {
-        .split-grid { grid-template-columns: 1fr; }
-      }
+      .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      @media (max-width: 560px) { .split-grid { grid-template-columns: 1fr; } }
 
       .split-side {
         border: 1px solid var(--border-soft);
@@ -212,17 +160,9 @@
         padding: 10px;
         background: rgba(0,0,0,0.02);
       }
-      @media (prefers-color-scheme: dark) {
-        .split-side { background: rgba(255,255,255,0.03); }
-      }
+      @media (prefers-color-scheme: dark) { .split-side { background: rgba(255,255,255,0.03); } }
 
-      .split-side-title {
-        font-weight: 800;
-        margin-bottom: 8px;
-        opacity: 0.9;
-      }
-
-      .lager-slots { display: grid; gap: 10px; }
+      .split-side-title { font-weight: 800; margin-bottom: 8px; opacity: 0.9; }
 
       .lager-slot {
         border-radius: 12px;
@@ -230,10 +170,10 @@
         border: 1px dashed rgba(0,0,0,0.25);
         cursor: pointer;
       }
-      @media (prefers-color-scheme: dark) {
-        .lager-slot { border: 1px dashed rgba(255,255,255,0.22); }
-      }
+      @media (prefers-color-scheme: dark) { .lager-slot { border: 1px dashed rgba(255,255,255,0.22); } }
       .lager-slot.is-full { border-style: solid; }
+      .lager-slot.is-readonly { cursor: default; }
+      .lager-slot.is-readonly:hover { filter: none; }
 
       .lager-slot-head {
         display: flex;
@@ -243,16 +183,9 @@
         margin-bottom: 6px;
       }
 
-      .lager-slot-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: nowrap;
-        align-items: center;
-        margin-top: 8px;
-      }
+      .lager-slot-actions { display: flex; gap: 8px; flex-wrap: nowrap; align-items: center; margin-top: 8px; }
       .lager-slot-actions button { white-space: nowrap; }
 
-      /* Regel-Badge */
       .rule-badge {
         display: inline-flex;
         align-items: center;
@@ -265,24 +198,10 @@
         border: 1px solid rgba(37, 99, 235, 0.35);
         color: var(--text);
       }
-      @media (prefers-color-scheme: dark) {
-        .rule-badge {
-          background: rgba(59, 130, 246, 0.16);
-          border-color: rgba(59, 130, 246, 0.40);
-        }
-      }
 
-      .lager-slot.is-restricted {
-        outline: 2px solid rgba(37, 99, 235, 0.18);
-        outline-offset: 2px;
-      }
+      .lager-slot.is-restricted { outline: 2px solid rgba(37, 99, 235, 0.18); outline-offset: 2px; }
+      .lager-slot.is-blocked { opacity: 0.45; filter: grayscale(0.25); }
 
-      .lager-slot.is-blocked {
-        opacity: 0.45;
-        filter: grayscale(0.25);
-      }
-
-      /* Mini Modal (Slot Picker) */
       .mini-modal-overlay {
         position: fixed;
         inset: 0;
@@ -293,6 +212,7 @@
         z-index: 999;
         backdrop-filter: blur(3px);
       }
+
       .mini-modal {
         background: var(--modal-bg);
         color: var(--modal-text);
@@ -304,6 +224,7 @@
         box-shadow: 0 0 25px var(--modal-shadow);
         position: relative;
       }
+
       .mini-modal-close {
         position: absolute;
         top: 8px;
@@ -326,7 +247,6 @@
         border: 1px solid rgba(22, 223, 15, 0.35);
       }
 
-      /* Error Popup (voll schwarz im Hintergrund) */
       .error-overlay {
         position: fixed;
         inset: 0;
@@ -358,20 +278,20 @@
         color: var(--modal-text);
       }
 
-      .error-title {
-        font-weight: 900;
-        margin-bottom: 8px;
-      }
+      .error-title { font-weight: 900; margin-bottom: 8px; }
+      .error-msg { opacity: 0.9; line-height: 1.35; }
+      .error-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
 
-      .error-msg {
-        opacity: 0.9;
-        line-height: 1.35;
-      }
-
-      .error-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 14px;
+      .role-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.12);
+        border: 1px solid rgba(37, 99, 235, 0.35);
+        font-size: 12px;
+        font-weight: 700;
       }
     </style>
   </head>
@@ -380,11 +300,14 @@
     <div class="bootshalle-container">
       <div class="bootshalle-card" style="display:grid; gap:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <h1 style="margin:0;">Digitale Bootshalle</h1>
+          <div style="display:grid; gap:6px;">
+            <h1 style="margin:0;">Digitale Bootshalle</h1>
+            <div class="role-pill" id="rolePill">Rolle wird geladen…</div>
+          </div>
           <button class="secondary" onclick="window.close()">Fenster schließen</button>
         </div>
 
-        <div class="bootshalle-warning">Diese Seite befindet sich in der Bearbeitung</div>
+        <div class="bootshalle-warning" id="modeNotice">Diese Seite befindet sich in der Bearbeitung</div>
 
         <div class="bootshalle-controls">
           <div style="min-width:260px;">
@@ -406,7 +329,6 @@
       </div>
 
       <div class="bootshalle-grid">
-        <!-- LEFT -->
         <div class="bootshalle-card">
           <div class="left-stack">
             <div>
@@ -425,7 +347,6 @@
           </div>
         </div>
 
-        <!-- RIGHT -->
         <div class="bootshalle-card">
           <div class="section-title">Lager</div>
           <div id="layoutRoot"></div>
@@ -433,7 +354,6 @@
       </div>
     </div>
 
-    <!-- Slot Picker Modal -->
     <div class="mini-modal-overlay" id="slotModalOverlay">
       <div class="mini-modal" role="dialog" aria-modal="true">
         <button class="mini-modal-close" id="slotModalClose">×</button>
@@ -451,7 +371,6 @@
       </div>
     </div>
 
-    <!-- Error Popup -->
     <div id="errorOverlay" class="error-overlay">
       <div class="error-box" role="dialog" aria-modal="true">
         <button class="error-close" id="errorCloseBtn">×</button>
@@ -463,6 +382,6 @@
       </div>
     </div>
 
-    <script type="module" src="/digitale-bootshalle.js?v=3"></script>
+    <script type="module" src="/digitale-bootshalle.js?v=4"></script>
   </body>
 </html>

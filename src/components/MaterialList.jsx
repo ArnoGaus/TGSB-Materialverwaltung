@@ -9,9 +9,10 @@ export default function MaterialList({
   openDeleteDialog,
   setOpenHistoryId,
   showAdmin,
+  canEditStandort = false,
+  canViewHistory = false,
   loadHistory,
   onOpenDetails,
-  onOpenStats,
   selectedIds,
   toggleSelect,
   selectSet,
@@ -65,10 +66,10 @@ export default function MaterialList({
   const classifyAusleger = useCallback(
     (item) => {
       const typ = (detailsByMaterialId?.[item.id]?.typ || "").toLowerCase();
-      const n = (item.name || "").toLowerCase();
+      const name = (item.name || "").toLowerCase();
 
-      const isSkull = typ === "skull" || n.includes("skullausleger");
-      const isRiemen = typ === "riemen" || n.includes("riemenausleger");
+      const isSkull = typ === "skull" || name.includes("skullausleger");
+      const isRiemen = typ === "riemen" || name.includes("riemenausleger");
 
       if (isSkull) return "skull";
       if (isRiemen) return "riemen";
@@ -101,21 +102,20 @@ export default function MaterialList({
     const map = {};
     for (const it of material || []) {
       if (it.kategorie !== "Ausleger" || !it.bundle_id) continue;
-
       if (!map[it.bundle_id]) map[it.bundle_id] = { skull: false, riemen: false };
 
-      const k = classifyAusleger(it);
-      if (k === "skull") map[it.bundle_id].skull = true;
-      if (k === "riemen") map[it.bundle_id].riemen = true;
+      const kind = classifyAusleger(it);
+      if (kind === "skull") map[it.bundle_id].skull = true;
+      if (kind === "riemen") map[it.bundle_id].riemen = true;
     }
     return map;
-  }, [material, classifyAusleger]);
+  }, [classifyAusleger, material]);
 
   const getBoatSeats = useCallback(
     (id) => {
-      const v = detailsByMaterialId?.[id]?.plaetze;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
+      const value = detailsByMaterialId?.[id]?.plaetze;
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
     },
     [detailsByMaterialId]
   );
@@ -125,11 +125,10 @@ export default function MaterialList({
       if (!boatItem || boatItem.kategorie !== "Boote") return "";
 
       const seats = detailsByMaterialId?.[boatItem.id]?.plaetze;
-      const p = Number.isFinite(Number(seats)) ? Number(seats) : null;
-      if (!p) return "";
+      const parsedSeats = Number.isFinite(Number(seats)) ? Number(seats) : null;
+      if (!parsedSeats) return "";
 
       const steer = !!detailsByMaterialId?.[boatItem.id]?.steuermann_verfuegbar;
-
       const bundle = boatItem.bundle_id ? auslegerByBundleId[boatItem.bundle_id] : null;
       const hasSkull = !!bundle?.skull;
       const hasRiemen = !!bundle?.riemen;
@@ -139,15 +138,14 @@ export default function MaterialList({
       else if (hasSkull) marker = "x";
       else if (hasRiemen) marker = "-";
 
-      const plus = steer ? "+" : "";
-      return `${p}${marker}${plus}`;
+      return `${parsedSeats}${marker}${steer ? "+" : ""}`;
     },
-    [detailsByMaterialId, auslegerByBundleId]
+    [auslegerByBundleId, detailsByMaterialId]
   );
 
   const addBundleToSelection = useCallback(
     (bundleId) => {
-      if (!bundleId) return;
+      if (!canEditStandort || !bundleId) return;
 
       const ids = (material || [])
         .filter((m) => m.bundle_id === bundleId)
@@ -163,20 +161,19 @@ export default function MaterialList({
         selectBundle(bundleId);
       }
     },
-    [material, selectedIds, toggleSelect, selectBundle]
+    [canEditStandort, material, selectBundle, selectedIds, toggleSelect]
   );
 
   const filterFn = useCallback(
     (item) => {
-      const q = search.toLowerCase().trim();
+      const query = search.toLowerCase().trim();
       const badge = item.kategorie === "Boote" ? boatBadgeText(item) : "";
-      const hay = `${item.name || ""} ${badge}`.toLowerCase();
-
-      const matchesSearch = hay.includes(q);
-      const matchesCat = filterKategorie === "Alle" || item.kategorie === filterKategorie;
-      return matchesSearch && matchesCat;
+      const haystack = `${item.name || ""} ${badge}`.toLowerCase();
+      const matchesSearch = haystack.includes(query);
+      const matchesCategory = filterKategorie === "Alle" || item.kategorie === filterKategorie;
+      return matchesSearch && matchesCategory;
     },
-    [search, filterKategorie, boatBadgeText]
+    [boatBadgeText, filterKategorie, search]
   );
 
   const boatOccupancyByStandort = useMemo(() => {
@@ -184,15 +181,15 @@ export default function MaterialList({
     for (const [standortName, items] of Object.entries(groupedByStandort || {})) {
       const boats = (items || []).filter((m) => m.kategorie === "Boote");
       const usedByClass = {};
-      for (const b of boats) {
-        const seats = Number(detailsByMaterialId?.[b.id]?.plaetze);
+      for (const boat of boats) {
+        const seats = Number(detailsByMaterialId?.[boat.id]?.plaetze);
         if (!Number.isFinite(seats)) continue;
         usedByClass[seats] = (usedByClass[seats] || 0) + 1;
       }
       result[standortName] = usedByClass;
     }
     return result;
-  }, [groupedByStandort, detailsByMaterialId]);
+  }, [detailsByMaterialId, groupedByStandort]);
 
   const totalCapacityByStandort = useMemo(() => {
     const result = {};
@@ -254,6 +251,8 @@ export default function MaterialList({
   }
 
   async function animateTransport(item, newStandort) {
+    if (!canEditStandort) return;
+
     const from = getStandortCenter(item.standort);
     const to = getStandortCenter(newStandort);
 
@@ -281,7 +280,7 @@ export default function MaterialList({
 
     const dx = to.x - from.x;
     const dy = to.y - from.y;
-    const angle = Math.atan2(dy, dx) * (360 / Math.PI);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     setVehiclePos({
       x: to.x - 46,
@@ -304,18 +303,9 @@ export default function MaterialList({
   }
 
   async function handleStandortChange(item, newStandort) {
+    if (!canEditStandort) return;
     if (item.standort === newStandort) return;
     await animateTransport(item, newStandort);
-  }
-
-  function renderBelongsToBoat(item) {
-    const isAccessory = item.kategorie === "Ausleger" || item.kategorie === "Hüllen" || item.kategorie === "Rollsitze";
-    if (!isAccessory) return null;
-    return null;
-  }
-
-  function renderAuslegerTyp(item) {
-    return null;
   }
 
   function renderNameWithBoatBadge(item) {
@@ -331,10 +321,6 @@ export default function MaterialList({
     );
   }
 
-  function renderRiemenMeta(item) {
-    return null;
-  }
-
   function sortCatItems(cat, items) {
     if (cat === "Boote") {
       return [...items].sort((a, b) => {
@@ -348,16 +334,7 @@ export default function MaterialList({
       });
     }
 
-    if (cat === "Skulls") {
-      return [...items].sort((a, b) => {
-        const na = extractLastNumber(a.name) ?? 999999;
-        const nb = extractLastNumber(b.name) ?? 999999;
-        if (na !== nb) return na - nb;
-        return (a.name || "").localeCompare(b.name || "");
-      });
-    }
-
-    if (cat === "Riemen") {
+    if (cat === "Skulls" || cat === "Riemen") {
       return [...items].sort((a, b) => {
         const na = extractLastNumber(a.name) ?? 999999;
         const nb = extractLastNumber(b.name) ?? 999999;
@@ -405,8 +382,8 @@ export default function MaterialList({
     }
 
     if (cat === "Ausleger" || cat === "Rollsitze") {
-      const bId = itemsInBundle?.[0]?.bundle_id;
-      if (bId && boatNameByBundleId[bId]) return boatNameByBundleId[bId];
+      const bundleId = itemsInBundle?.[0]?.bundle_id;
+      if (bundleId && boatNameByBundleId[bundleId]) return boatNameByBundleId[bundleId];
     }
 
     return first;
@@ -426,20 +403,23 @@ export default function MaterialList({
     return (
       <tr key={item.id}>
         <td>
-          <input
-            type="checkbox"
-            checked={selectedIds.has(item.id)}
-            onChange={(e) => toggleSelect(item.id, e.target.checked)}
-          />
+          {canEditStandort ? (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(item.id)}
+              onChange={(e) => toggleSelect(item.id, e.target.checked)}
+            />
+          ) : (
+            <span style={{ opacity: 0.45 }}>—</span>
+          )}
         </td>
 
         <td>
           <div style={{ display: "grid", gap: 4 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               {renderNameWithBoatBadge(item)}
-              {renderAuslegerTyp(item)}
 
-              {item.kategorie === "Boote" && item.bundle_id && (
+              {item.kategorie === "Boote" && item.bundle_id && canEditStandort && (
                 <button
                   style={{ padding: "2px 8px", fontSize: 12 }}
                   onClick={() => addBundleToSelection(item.bundle_id)}
@@ -448,16 +428,16 @@ export default function MaterialList({
                   Bundle
                 </button>
               )}
-
-              {renderRiemenMeta(item)}
             </div>
-
-            {renderBelongsToBoat(item)}
           </div>
         </td>
 
         <td>
-          <select value={item.standort} onChange={(e) => handleStandortChange(item, e.target.value)}>
+          <select
+            value={item.standort}
+            onChange={(e) => handleStandortChange(item, e.target.value)}
+            disabled={!canEditStandort}
+          >
             {standorte.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -471,14 +451,18 @@ export default function MaterialList({
         </td>
 
         <td>
-          <button
-            onClick={async () => {
-              await loadHistory(item.id);
-              setOpenHistoryId(item.id);
-            }}
-          >
-            Verlauf
-          </button>
+          {canViewHistory ? (
+            <button
+              onClick={async () => {
+                await loadHistory(item.id);
+                setOpenHistoryId(item.id);
+              }}
+            >
+              Verlauf
+            </button>
+          ) : (
+            <span style={{ opacity: 0.45 }}>—</span>
+          )}
         </td>
 
         {showAdmin && (
@@ -511,7 +495,6 @@ export default function MaterialList({
     for (const bundleKey of bundleKeys) {
       const isRealBundle = !bundleKey.startsWith("__no_bundle__");
       const list = grouped[bundleKey] || [];
-
       const isOpen = isRealBundle ? !!openBundles[bundleKey] : true;
       const isRollsitzeOpen = isRealBundle ? !!openRollsitzeBundles[bundleKey] : true;
 
@@ -521,7 +504,6 @@ export default function MaterialList({
       if (cat === "Ausleger" && isRealBundle) {
         const boatId = boatIdByBundleId[bundleKey];
         auslegerSeats = boatId ? getBoatSeats(boatId) : null;
-
         const flags = auslegerByBundleId?.[bundleKey] || { skull: false, riemen: false };
         auslegerHasBothTypes = !!flags.skull && !!flags.riemen;
       }
@@ -534,11 +516,9 @@ export default function MaterialList({
 
       const suppressBundleHeader =
         isRealBundle &&
-        (
-          (cat === "Riemen" && list.length === 1) ||
+        ((cat === "Riemen" && list.length === 1) ||
           (cat === "Ausleger" && auslegerSeats === 1) ||
-          (cat === "Rollsitze" && rollsitzeSeats === 1)
-        );
+          (cat === "Rollsitze" && rollsitzeSeats === 1));
 
       if (isRealBundle && !suppressBundleHeader) {
         const count = list.length;
@@ -561,7 +541,7 @@ export default function MaterialList({
                   {getBundleDisplayName(cat, list)} — {count} {count === 1 ? "Element" : "Elemente"}
                 </div>
 
-                {(cat === "Skulls" || cat === "Riemen") && (
+                {(cat === "Skulls" || cat === "Riemen") && canEditStandort && (
                   <button
                     style={{ padding: "2px 8px", fontSize: 12 }}
                     onClick={() => selectBundle(bundleKey)}
@@ -579,8 +559,8 @@ export default function MaterialList({
       if (!suppressBundleHeader) {
         if (cat === "Rollsitze") {
           if (!isRollsitzeOpen) continue;
-        } else {
-          if (!isOpen) continue;
+        } else if (!isOpen) {
+          continue;
         }
       }
 
@@ -590,12 +570,7 @@ export default function MaterialList({
       }
 
       if (cat === "Ausleger" && isRealBundle) {
-        if (auslegerSeats === 1) {
-          for (const it of sortCatItems("Ausleger", list)) rows.push(renderRow(it));
-          continue;
-        }
-
-        if (!auslegerHasBothTypes) {
+        if (auslegerSeats === 1 || !auslegerHasBothTypes) {
           for (const it of sortCatItems("Ausleger", list)) rows.push(renderRow(it));
           continue;
         }
@@ -605,9 +580,9 @@ export default function MaterialList({
         const other = [];
 
         for (const it of list) {
-          const k = classifyAusleger(it);
-          if (k === "skull") skull.push(it);
-          else if (k === "riemen") riemen.push(it);
+          const kind = classifyAusleger(it);
+          if (kind === "skull") skull.push(it);
+          else if (kind === "riemen") riemen.push(it);
           else other.push(it);
         }
 
@@ -644,7 +619,6 @@ export default function MaterialList({
           );
 
           if (!gOpen) continue;
-
           for (const it of sortCatItems("Ausleger", sec.items)) rows.push(renderRow(it));
         }
 
@@ -682,26 +656,9 @@ export default function MaterialList({
           <div>
             <h3 style={{ margin: 0 }}>Suche & Filter</h3>
             <div style={{ opacity: 0.75, fontSize: 12, marginTop: 4 }}>
-              Mit Karte, Ziel-Highlight und Transport-Animation.
+              {canEditStandort ? "Standortänderungen und Sammelauswahl aktiv." : "Lesemodus für Besucher aktiv."}
             </div>
           </div>
-
-          {showAdmin && (
-            <button
-              onClick={() => onOpenStats?.()}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(92,160,255,0.30)",
-                background: "rgba(92,160,255,0.14)",
-                color: "inherit",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Statistik
-            </button>
-          )}
         </div>
 
         <div
@@ -729,28 +686,15 @@ export default function MaterialList({
             }}
           />
 
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: 0.7 }}>
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: 0.7 }}
+          >
             {roadLines.map((line, idx) => (
               <g key={idx}>
-                <line
-                  x1={line.x1}
-                  y1={line.y1}
-                  x2={line.x2}
-                  y2={line.y2}
-                  stroke="rgba(255,255,255,0.10)"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1={line.x1}
-                  y1={line.y1}
-                  x2={line.x2}
-                  y2={line.y2}
-                  stroke="rgba(255,255,255,0.38)"
-                  strokeWidth="0.35"
-                  strokeDasharray="1.8 1.8"
-                  strokeLinecap="round"
-                />
+                <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="rgba(255,255,255,0.10)" strokeWidth="1.8" strokeLinecap="round" />
+                <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="rgba(255,255,255,0.38)" strokeWidth="0.35" strokeDasharray="1.8 1.8" strokeLinecap="round" />
               </g>
             ))}
           </svg>
@@ -776,12 +720,8 @@ export default function MaterialList({
                   padding: "14px 16px",
                   borderRadius: 20,
                   background: "rgba(20,28,48,0.84)",
-                  border: highlightStandort === standortName
-                    ? "1px solid rgba(92,160,255,0.35)"
-                    : "1px solid rgba(255,255,255,0.12)",
-                  boxShadow: highlightStandort === standortName
-                    ? "0 18px 34px rgba(92,160,255,0.18)"
-                    : "0 12px 22px rgba(0,0,0,0.18)",
+                  border: highlightStandort === standortName ? "1px solid rgba(92,160,255,0.35)" : "1px solid rgba(255,255,255,0.12)",
+                  boxShadow: highlightStandort === standortName ? "0 18px 34px rgba(92,160,255,0.18)" : "0 12px 22px rgba(0,0,0,0.18)",
                   backdropFilter: "blur(6px)",
                   display: "grid",
                   gap: 7,
@@ -881,6 +821,7 @@ export default function MaterialList({
               boxSizing: "border-box",
             }}
           />
+
           <select
             value={filterKategorie}
             onChange={(e) => setFilterKategorie(e.target.value)}
@@ -930,7 +871,7 @@ export default function MaterialList({
               </div>
             </div>
 
-            {capClasses.length > 0 ? (
+            {capClasses.length > 0 && (
               <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
                 <strong>Bootsplätze:</strong>{" "}
                 {capClasses.map((cls, idx) => {
@@ -944,7 +885,7 @@ export default function MaterialList({
                   );
                 })}
               </div>
-            ) : null}
+            )}
 
             {!standortOpen ? null : (
               <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: 12 }}>
@@ -983,7 +924,7 @@ export default function MaterialList({
                           </thead>
 
                           <tbody>
-                            {(cat === "Skulls" || cat === "Riemen" || cat === "Ausleger" || cat === "Rollsitze") ? (
+                            {cat === "Skulls" || cat === "Riemen" || cat === "Ausleger" || cat === "Rollsitze" ? (
                               catItems.length > 0 ? (
                                 renderBundleRows(catItems, cat)
                               ) : (

@@ -1,7 +1,6 @@
-// src/App.jsx
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
-import { detailsSchema, normalizeDetailsForCategory, standorte, uid, getBootCapacity } from "./lib/schema";
+import { detailsSchema, standorte, uid, normalizeDetailsForCategory, getBootCapacity } from "./lib/schema";
 import { extractLastNumber } from "./lib/sort";
 
 import "./App.css";
@@ -21,27 +20,50 @@ import MoveSetModal from "./components/modals/MoveSetModal";
 import CapacityConfirmModal from "./components/modals/CapacityConfirmModal";
 import BulkMoveConfirmModal from "./components/modals/BulkMoveConfirmModal";
 
+function normalizeRole(rawRole) {
+  const role = String(rawRole || "").trim().toLowerCase();
+  if (role === "admin") return "admin";
+  if (role === "user") return "user";
+  return "visitor";
+}
 
+function getPermissions(role) {
+  const normalized = normalizeRole(role);
+  return {
+    role: normalized,
+    isVisitor: normalized === "visitor",
+    isUser: normalized === "user",
+    isAdmin: normalized === "admin",
+    canEditStandort: normalized === "user" || normalized === "admin",
+    canEditDetails: normalized === "user" || normalized === "admin",
+    canRenameMaterial: normalized === "admin",
+    canDeleteMaterial: normalized === "admin",
+    canUseAdminPanel: normalized === "admin",
+    canViewHistory: normalized === "user" || normalized === "admin",
+    canViewStatistics: true,
+    canEditTable: normalized === "user" || normalized === "admin",
+    canEditBootshalle: normalized === "user" || normalized === "admin",
+  };
+}
 
 function useOnlineCount(session) {
   const [onlineCount, setOnlineCount] = useState(1);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) return undefined;
 
     const channel = supabase.channel("online-users", {
       config: { presence: { key: session.user.id } },
     });
 
     channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState(); // { key: [metas...] }
+      const state = channel.presenceState();
       const uniqueUsers = Object.keys(state).length;
       setOnlineCount(uniqueUsers);
     });
 
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        // Tracke "ich bin online"
         await channel.track({
           user_id: session.user.id,
           ts: Date.now(),
@@ -67,7 +89,7 @@ export default function App() {
   const [material, setMaterial] = useState([]);
   const [profile, setProfile] = useState(null);
 
-  const isAdmin = profile?.role === "admin";
+  const permissions = useMemo(() => getPermissions(profile?.role), [profile?.role]);
 
   const [history, setHistory] = useState({});
   const [openHistoryId, setOpenHistoryId] = useState(null);
@@ -81,21 +103,15 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [showSelectedList, setShowSelectedList] = useState(false);
 
-  const onlineCount = useOnlineCount(session);
-
   const [moveBoatDialog, setMoveBoatDialog] = useState(null);
   const [moveSetDialog, setMoveSetDialog] = useState(null);
-
   const [bulkMoveConfirm, setBulkMoveConfirm] = useState(null);
   const [bulkTarget, setBulkTarget] = useState("");
-
   const [capacityConfirm, setCapacityConfirm] = useState(null);
-
   const [bulkCapacityConfirm, setBulkCapacityConfirm] = useState(null);
 
-  // -----------------------------------------------------
-  // MATERIAL + DETAILS (Batch)
-  // -----------------------------------------------------
+  const onlineCount = useOnlineCount(session);
+
   const fetchMaterialAndDetails = useCallback(async () => {
     const { data: mat, error } = await supabase.from("material").select("*").order("name");
     if (error) {
@@ -109,18 +125,22 @@ export default function App() {
     setMaterial(list);
 
     const ids = list.map((m) => m.id).filter(Boolean);
-    const chunkSize = 400;
     const map = {};
+    const chunkSize = 400;
 
     for (let i = 0; i < ids.length; i += chunkSize) {
       const chunk = ids.slice(i, i + chunkSize);
       // eslint-disable-next-line no-await-in-loop
-      const { data: det, error: detError } = await supabase.from("material_details").select("material_id, values").in("material_id", chunk);
+      const { data: det, error: detError } = await supabase
+        .from("material_details")
+        .select("material_id, values")
+        .in("material_id", chunk);
 
       if (detError) {
         console.error("Details laden Fehler:", detError);
         continue;
       }
+
       (det || []).forEach((row) => {
         map[row.material_id] = row.values || {};
       });
@@ -129,32 +149,32 @@ export default function App() {
     setDetailsByMaterialId(map);
   }, []);
 
-  // -----------------------------------------------------
-  // PROFILE
-  // -----------------------------------------------------
   const loadProfile = useCallback(
     async (userId) => {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
-      if (error) console.error("Profile Fehler:", error);
+      if (error) {
+        console.error("Profile Fehler:", error);
+      }
       setProfile(data || null);
       await fetchMaterialAndDetails();
     },
     [fetchMaterialAndDetails]
   );
 
-  // -----------------------------------------------------
-  // LOGIN / SESSION
-  // -----------------------------------------------------
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) loadProfile(data.session.user.id);
+      if (data.session) {
+        loadProfile(data.session.user.id);
+      }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) loadProfile(session.user.id);
-      else {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+
+      if (nextSession) {
+        loadProfile(nextSession.user.id);
+      } else {
         setProfile(null);
         setMaterial([]);
         setDetailsByMaterialId({});
@@ -171,99 +191,104 @@ export default function App() {
     });
 
     return () => sub?.subscription?.unsubscribe?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadProfile]);
 
-  // -----------------------------------------------------
-  // HISTORY
-  // -----------------------------------------------------
-  const loadHistory = useCallback(async (materialId) => {
-    const { data: hist, error: histError } = await supabase
-      .from("material_history")
-      .select("id, material_id, alter_standort, neuer_standort, geändert_am, geändert_von")
-      .eq("material_id", materialId)
-      .order("geändert_am", { ascending: false });
+  const loadHistory = useCallback(
+    async (materialId) => {
+      if (!permissions.canViewHistory) return;
 
-    if (histError) {
-      console.error("History Fehler:", histError);
-      setHistory((prev) => ({ ...prev, [materialId]: [] }));
-      return;
-    }
+      const { data: hist, error: histError } = await supabase
+        .from("material_history")
+        .select("id, material_id, alter_standort, neuer_standort, geändert_am, geändert_von")
+        .eq("material_id", materialId)
+        .order("geändert_am", { ascending: false });
 
-    if (!hist || hist.length === 0) {
-      setHistory((prev) => ({ ...prev, [materialId]: [] }));
-      return;
-    }
+      if (histError) {
+        console.error("History Fehler:", histError);
+        setHistory((prev) => ({ ...prev, [materialId]: [] }));
+        return;
+      }
 
-    const userIds = [...new Set(hist.map((h) => h.geändert_von).filter(Boolean))];
-    let profileMap = {};
-    if (userIds.length > 0) {
-      const { data: profs, error: profError } = await supabase.from("profiles").select("id, name").in("id", userIds);
-      if (profError) console.error("Profiles Fehler:", profError);
-      else profileMap = Object.fromEntries((profs || []).map((p) => [p.id, p.name]));
-    }
+      if (!hist || hist.length === 0) {
+        setHistory((prev) => ({ ...prev, [materialId]: [] }));
+        return;
+      }
 
-    const formatted = hist.map((h) => {
-      const userName = profileMap[h.geändert_von] || "Unbekannt";
-      return `${new Date(h.geändert_am).toLocaleString("de-DE")} – ${userName}: ${h.alter_standort} → ${h.neuer_standort}`;
-    });
+      const userIds = [...new Set(hist.map((h) => h.geändert_von).filter(Boolean))];
+      let profileMap = {};
 
-    setHistory((prev) => ({ ...prev, [materialId]: formatted }));
-  }, []);
+      if (userIds.length > 0) {
+        const { data: profs, error: profError } = await supabase.from("profiles").select("id, name").in("id", userIds);
+        if (profError) {
+          console.error("Profiles Fehler:", profError);
+        } else {
+          profileMap = Object.fromEntries((profs || []).map((p) => [p.id, p.name]));
+        }
+      }
 
-  // -----------------------------------------------------
-  // DETAILS SAVE
-  // -----------------------------------------------------
-  const saveDetails = useCallback(async (materialId, newValues) => {
-    const userId = await getCurrentUserId();
-    const payload = { material_id: materialId, values: newValues, updated_by: userId };
+      const formatted = hist.map((h) => {
+        const userName = profileMap[h.geändert_von] || "Unbekannt";
+        return `${new Date(h.geändert_am).toLocaleString("de-DE")} – ${userName}: ${h.alter_standort} → ${h.neuer_standort}`;
+      });
 
-    const { error } = await supabase.from("material_details").upsert(payload, { onConflict: "material_id" });
-    if (error) {
-      console.error("Details speichern Fehler:", error);
-      alert("Speichern fehlgeschlagen: " + error.message);
-      return false;
-    }
+      setHistory((prev) => ({ ...prev, [materialId]: formatted }));
+    },
+    [permissions.canViewHistory]
+  );
 
-    setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: newValues }));
-    return true;
-  }, []);
+  const saveDetails = useCallback(
+    async (materialId, newValues) => {
+      if (!permissions.canEditDetails) return false;
 
-  // -----------------------------------------------------
-  // ✅ Admin: Name ändern
-  // -----------------------------------------------------
-  const saveItemName = useCallback(async (materialId, newName) => {
-    const name = String(newName || "").trim();
-    if (!name) return false;
+      const userId = await getCurrentUserId();
+      const payload = { material_id: materialId, values: newValues, updated_by: userId };
 
-    const { error } = await supabase.from("material").update({ name }).eq("id", materialId);
-    if (error) {
-      alert("Name speichern fehlgeschlagen: " + error.message);
-      return false;
-    }
+      const { error } = await supabase.from("material_details").upsert(payload, { onConflict: "material_id" });
+      if (error) {
+        console.error("Details speichern Fehler:", error);
+        alert("Speichern fehlgeschlagen: " + error.message);
+        return false;
+      }
 
-    setMaterial((prev) => prev.map((m) => (m.id === materialId ? { ...m, name } : m)));
-    return true;
-  }, []);
+      setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: newValues }));
+      return true;
+    },
+    [permissions.canEditDetails]
+  );
 
-  // -----------------------------------------------------
-  // ✅ Admin: Satz/Bundlename umbenennen (Skulls/Riemen Bundle)
-  // -----------------------------------------------------
+  const saveItemName = useCallback(
+    async (materialId, newName) => {
+      if (!permissions.canRenameMaterial) return false;
+
+      const name = String(newName || "").trim();
+      if (!name) return false;
+
+      const { error } = await supabase.from("material").update({ name }).eq("id", materialId);
+      if (error) {
+        alert("Name speichern fehlgeschlagen: " + error.message);
+        return false;
+      }
+
+      setMaterial((prev) => prev.map((m) => (m.id === materialId ? { ...m, name } : m)));
+      return true;
+    },
+    [permissions.canRenameMaterial]
+  );
+
   const renameBundleBaseName = useCallback(
-    async (bundle_id, newBaseName) => {
-      if (!bundle_id) return false;
+    async (bundleId, newBaseName) => {
+      if (!permissions.canRenameMaterial || !bundleId) return false;
+
       const base = String(newBaseName || "").trim();
       if (!base) return false;
 
-      const items = material.filter((m) => m.bundle_id === bundle_id && (m.kategorie === "Skulls" || m.kategorie === "Riemen"));
+      const items = material.filter((m) => m.bundle_id === bundleId && (m.kategorie === "Skulls" || m.kategorie === "Riemen"));
       if (items.length === 0) return false;
 
       for (const it of items) {
         const old = it.name || "";
-        const m = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
-        let nextName = base;
-        if (m) nextName = `${base}${m[2]}${m[3] || ""}`;
-        else nextName = `${base} ${old}`;
+        const match = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
+        const nextName = match ? `${base}${match[2]}${match[3] || ""}` : `${base} ${old}`;
 
         // eslint-disable-next-line no-await-in-loop
         const { error } = await supabase.from("material").update({ name: nextName }).eq("id", it.id);
@@ -275,23 +300,20 @@ export default function App() {
 
       setMaterial((prev) =>
         prev.map((m) => {
-          if (m.bundle_id !== bundle_id) return m;
+          if (m.bundle_id !== bundleId) return m;
           if (!(m.kategorie === "Skulls" || m.kategorie === "Riemen")) return m;
           const old = m.name || "";
-          const mm = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
-          const nextName = mm ? `${base}${mm[2]}${mm[3] || ""}` : `${base} ${old}`;
+          const match = old.match(/^(.*?)(\s+\d+)(\s+-\s+.*)?$/);
+          const nextName = match ? `${base}${match[2]}${match[3] || ""}` : `${base} ${old}`;
           return { ...m, name: nextName };
         })
       );
 
       return true;
     },
-    [material]
+    [material, permissions.canRenameMaterial]
   );
 
-  // -----------------------------------------------------
-  // ✅ Boot + Zubehör anlegen
-  // -----------------------------------------------------
   const addBoatWithSeatItems = useCallback(
     async ({
       boatName,
@@ -306,7 +328,7 @@ export default function App() {
       auslegerRiemenPerSeatDetails,
       rollsitzPerSeatDetails,
     }) => {
-      if (!showAdmin || !isAdmin) return;
+      if (!(permissions.canUseAdminPanel && showAdmin)) return;
 
       if (!createSkullAusleger && !createRiemenAusleger) {
         alert("Bitte mindestens Skullausleger oder Riemenausleger auswählen.");
@@ -314,19 +336,30 @@ export default function App() {
       }
 
       const userId = await getCurrentUserId();
-      const bundle_id = uid();
+      const bundleId = uid();
       const plaetze = Math.max(1, Number(boatDetails?.plaetze || 1));
 
-      const rows = [];
-      rows.push({ name: boatName, kategorie: "Boote", standort, bundle_id });
+      const rows = [{ name: boatName, kategorie: "Boote", standort, bundle_id: bundleId }];
 
-      if (hasHuelle) rows.push({ name: huelleName || `${boatName} - Hülle`, kategorie: "Hüllen", standort, bundle_id });
+      if (hasHuelle) {
+        rows.push({ name: huelleName || `${boatName} - Hülle`, kategorie: "Hüllen", standort, bundle_id: bundleId });
+      }
 
-      for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Rollsitz ${i}`, kategorie: "Rollsitze", standort, bundle_id });
+      for (let i = 1; i <= plaetze; i += 1) {
+        rows.push({ name: `${boatName} - Rollsitz ${i}`, kategorie: "Rollsitze", standort, bundle_id: bundleId });
+      }
 
-      if (createSkullAusleger) for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Skullausleger ${i}`, kategorie: "Ausleger", standort, bundle_id });
+      if (createSkullAusleger) {
+        for (let i = 1; i <= plaetze; i += 1) {
+          rows.push({ name: `${boatName} - Skullausleger ${i}`, kategorie: "Ausleger", standort, bundle_id: bundleId });
+        }
+      }
 
-      if (createRiemenAusleger) for (let i = 1; i <= plaetze; i++) rows.push({ name: `${boatName} - Riemenausleger ${i}`, kategorie: "Ausleger", standort, bundle_id });
+      if (createRiemenAusleger) {
+        for (let i = 1; i <= plaetze; i += 1) {
+          rows.push({ name: `${boatName} - Riemenausleger ${i}`, kategorie: "Ausleger", standort, bundle_id: bundleId });
+        }
+      }
 
       const { data: inserted, error } = await supabase.from("material").insert(rows).select();
       if (error) {
@@ -348,35 +381,45 @@ export default function App() {
       const boatValues = normalizeDetailsForCategory("Boote", {
         ...boatDetails,
         huelle_vorhanden: !!hasHuelle,
-        huelle_notiz: hasHuelle ? (huelleNotiz || "") : "",
+        huelle_notiz: hasHuelle ? huelleNotiz || "" : "",
       });
 
       const detailsUpserts = [];
       if (boatRow) detailsUpserts.push({ material_id: boatRow.id, values: boatValues, updated_by: userId });
 
       if (hasHuelle && huelleRow) {
-        const huelleValues = normalizeDetailsForCategory("Hüllen", { notiz: huelleNotiz || "" });
-        detailsUpserts.push({ material_id: huelleRow.id, values: huelleValues, updated_by: userId });
+        detailsUpserts.push({
+          material_id: huelleRow.id,
+          values: normalizeDetailsForCategory("Hüllen", { notiz: huelleNotiz || "" }),
+          updated_by: userId,
+        });
       }
 
-      for (let i = 0; i < rollsitzRows.length; i++) {
-        const values = normalizeDetailsForCategory("Rollsitze", rollsitzPerSeatDetails?.[i] || {});
-        detailsUpserts.push({ material_id: rollsitzRows[i].id, values, updated_by: userId });
+      for (let i = 0; i < rollsitzRows.length; i += 1) {
+        detailsUpserts.push({
+          material_id: rollsitzRows[i].id,
+          values: normalizeDetailsForCategory("Rollsitze", rollsitzPerSeatDetails?.[i] || {}),
+          updated_by: userId,
+        });
       }
 
       for (const row of auslegerRows) {
-        const n = (row.name || "").toLowerCase();
+        const lowerName = (row.name || "").toLowerCase();
         const match = row.name?.match(/(\d+)\s*$/);
         const idx = match ? Math.max(0, Number(match[1]) - 1) : 0;
 
-        if (n.includes("skullausleger")) {
-          const base = auslegerSkullPerSeatDetails?.[idx] || {};
-          const values = normalizeDetailsForCategory("Ausleger", { ...base, typ: "skull" });
-          detailsUpserts.push({ material_id: row.id, values, updated_by: userId });
-        } else if (n.includes("riemenausleger")) {
-          const base = auslegerRiemenPerSeatDetails?.[idx] || {};
-          const values = normalizeDetailsForCategory("Ausleger", { ...base, typ: "riemen" });
-          detailsUpserts.push({ material_id: row.id, values, updated_by: userId });
+        if (lowerName.includes("skullausleger")) {
+          detailsUpserts.push({
+            material_id: row.id,
+            values: normalizeDetailsForCategory("Ausleger", { ...(auslegerSkullPerSeatDetails?.[idx] || {}), typ: "skull" }),
+            updated_by: userId,
+          });
+        } else if (lowerName.includes("riemenausleger")) {
+          detailsUpserts.push({
+            material_id: row.id,
+            values: normalizeDetailsForCategory("Ausleger", { ...(auslegerRiemenPerSeatDetails?.[idx] || {}), typ: "riemen" }),
+            updated_by: userId,
+          });
         } else {
           detailsUpserts.push({ material_id: row.id, values: {}, updated_by: userId });
         }
@@ -384,7 +427,9 @@ export default function App() {
 
       if (detailsUpserts.some((d) => d.values && Object.keys(d.values).length > 0)) {
         const { error: detError } = await supabase.from("material_details").upsert(detailsUpserts, { onConflict: "material_id" });
-        if (detError) console.error("Details upsert Fehler:", detError);
+        if (detError) {
+          console.error("Details upsert Fehler:", detError);
+        }
       }
 
       const historyRows = (inserted || []).map((r) => ({
@@ -408,27 +453,24 @@ export default function App() {
         return next;
       });
     },
-    [isAdmin, showAdmin]
+    [permissions.canUseAdminPanel, showAdmin]
   );
 
-  // -----------------------------------------------------
-  // ✅ Skulls Satz
-  // -----------------------------------------------------
   const addSkullsSet = useCallback(
     async ({ setName, count, standort, sharedDetails, perItemDetails }) => {
-      if (!showAdmin || !isAdmin) return;
+      if (!(permissions.canUseAdminPanel && showAdmin)) return;
+
       const userId = await getCurrentUserId();
-
-      const bundle_id = uid();
-      const set_id = uid();
-
+      const bundleId = uid();
+      const setId = uid();
       const n = Math.max(1, Number(count || 1));
+
       const rows = Array.from({ length: n }).map((_, i) => ({
         name: `${setName} ${i + 1}`,
         kategorie: "Skulls",
         standort,
-        bundle_id,
-        set_id,
+        bundle_id: bundleId,
+        set_id: setId,
       }));
 
       const { data: inserted, error } = await supabase.from("material").insert(rows).select();
@@ -438,10 +480,94 @@ export default function App() {
       }
 
       const shared = normalizeDetailsForCategory("Skulls", sharedDetails || {});
+      const detRows = (inserted || []).map((r, idx) => ({
+        material_id: r.id,
+        values: { ...shared, ...normalizeDetailsForCategory("Skulls", perItemDetails?.[idx] || {}) },
+        updated_by: userId,
+      }));
+
+      if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
+        const { error: detError } = await supabase.from("material_details").upsert(detRows, { onConflict: "material_id" });
+        if (detError) console.error("Details upsert Fehler:", detError);
+      }
+
+      const historyRows = (inserted || []).map((r) => ({
+        material_id: r.id,
+        alter_standort: "",
+        neuer_standort: standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+      }));
+      await supabase.from("material_history").insert(historyRows);
+
+      setMaterial((prev) => {
+        const next = [...prev, ...(inserted || [])];
+        next.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        return next;
+      });
+
+      setDetailsByMaterialId((prev) => {
+        const next = { ...prev };
+        for (const d of detRows) next[d.material_id] = d.values || {};
+        return next;
+      });
+    },
+    [permissions.canUseAdminPanel, showAdmin]
+  );
+
+  const addRiemenSetPairs = useCallback(
+    async ({ setName, pairsCount, standort, sharedDetails, perPairDetails }) => {
+      if (!(permissions.canUseAdminPanel && showAdmin)) return;
+
+      const userId = await getCurrentUserId();
+      const n = Math.max(1, Number(pairsCount || 1));
+      const bundleId = n > 1 ? uid() : null;
+      const setId = n > 1 ? uid() : null;
+
+      const allRows = Array.from({ length: n }).map((_, i) => ({
+        name: n > 1 ? `${setName} ${i + 1}` : setName,
+        kategorie: "Riemen",
+        standort,
+        bundle_id: bundleId,
+        set_id: setId,
+      }));
+
+      const { data: inserted, error } = await supabase.from("material").insert(allRows).select();
+      if (error) {
+        alert("Fehler: " + error.message);
+        return;
+      }
+
+      const shared = normalizeDetailsForCategory("Riemen", sharedDetails || {});
       const detRows = (inserted || []).map((r, idx) => {
-        const per = normalizeDetailsForCategory("Skulls", perItemDetails?.[idx] || {});
-        const values = { ...shared, ...per };
-        return { material_id: r.id, values, updated_by: userId };
+        const rawPer = perPairDetails?.[idx] || {};
+        const unterschiedlicheSeiten = !!rawPer.unterschiedliche_seiten;
+
+        const meta = {};
+        Object.entries(rawPer).forEach(([key, value]) => {
+          if (["unterschiedliche_seiten", "backbord", "steuerbord"].includes(key)) return;
+          if (value !== "" && value !== null && value !== undefined) meta[key] = value;
+        });
+
+        const cleanSide = (sideObj = {}) => {
+          const out = {};
+          Object.entries(sideObj).forEach(([key, value]) => {
+            if (value !== "" && value !== null && value !== undefined) out[key] = value;
+          });
+          return out;
+        };
+
+        return {
+          material_id: r.id,
+          values: normalizeDetailsForCategory("Riemen", {
+            ...shared,
+            ...meta,
+            unterschiedliche_seiten: unterschiedlicheSeiten,
+            backbord: cleanSide(rawPer?.backbord || {}),
+            steuerbord: cleanSide(unterschiedlicheSeiten ? rawPer?.steuerbord || {} : rawPer?.backbord || {}),
+          }),
+          updated_by: userId,
+        };
       });
 
       if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
@@ -470,138 +596,17 @@ export default function App() {
         return next;
       });
     },
-    [isAdmin, showAdmin]
+    [permissions.canUseAdminPanel, showAdmin]
   );
 
-  // -----------------------------------------------------
-  // ✅ Riemen Satz
-  // -----------------------------------------------------
-  const addRiemenSetPairs = useCallback(
-    async ({ setName, pairsCount, standort, sharedDetails, perPairDetails }) => {
-      if (!showAdmin || !isAdmin) return;
-
-      const userId = await getCurrentUserId();
-      const n = Math.max(1, Number(pairsCount || 1));
-
-      const bundle_id = n > 1 ? uid() : null;
-      const set_id = n > 1 ? uid() : null;
-
-      const allRows = [];
-
-      for (let i = 1; i <= n; i++) {
-        allRows.push({
-          name: n > 1 ? `${setName} ${i}` : setName,
-          kategorie: "Riemen",
-          standort,
-          bundle_id,
-          set_id,
-        });
-      }
-
-      const { data: inserted, error } = await supabase
-        .from("material")
-        .insert(allRows)
-        .select();
-
-      if (error) {
-        alert("Fehler: " + error.message);
-        return;
-      }
-
-      const shared = normalizeDetailsForCategory("Riemen", sharedDetails || {});
-
-      const detRows = (inserted || []).map((r, idx) => {
-        const rawPer = perPairDetails?.[idx] || {};
-        const unterschiedlicheSeiten = !!rawPer.unterschiedliche_seiten;
-
-        const meta = {};
-        Object.entries(rawPer).forEach(([key, value]) => {
-          if (
-            key === "unterschiedliche_seiten" ||
-            key === "backbord" ||
-            key === "steuerbord"
-          ) {
-            return;
-          }
-          if (value !== "" && value !== null && value !== undefined) {
-            meta[key] = value;
-          }
-        });
-
-        const cleanSide = (sideObj = {}) => {
-          const out = {};
-          Object.entries(sideObj).forEach(([key, value]) => {
-            if (value !== "" && value !== null && value !== undefined) {
-              out[key] = value;
-            }
-          });
-          return out;
-        };
-
-        const backbord = cleanSide(rawPer?.backbord || {});
-        const steuerbord = cleanSide(
-          unterschiedlicheSeiten ? rawPer?.steuerbord || {} : rawPer?.backbord || {}
-        );
-
-        const values = normalizeDetailsForCategory("Riemen", {
-          ...shared,
-          ...meta,
-          unterschiedliche_seiten: unterschiedlicheSeiten,
-          backbord,
-          steuerbord,
-        });
-
-        return {
-          material_id: r.id,
-          values,
-          updated_by: userId,
-        };
-      });
-
-      if (detRows.some((d) => d.values && Object.keys(d.values).length > 0)) {
-        const { error: detError } = await supabase
-          .from("material_details")
-          .upsert(detRows, { onConflict: "material_id" });
-
-        if (detError) {
-          console.error("Details upsert Fehler:", detError);
-        }
-      }
-
-      const historyRows = (inserted || []).map((r) => ({
-        material_id: r.id,
-        alter_standort: "",
-        neuer_standort: standort,
-        geändert_von: userId,
-        geändert_am: new Date().toISOString(),
-      }));
-
-      await supabase.from("material_history").insert(historyRows);
-
-      setMaterial((prev) => {
-        const next = [...prev, ...(inserted || [])];
-        next.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        return next;
-      });
-
-      setDetailsByMaterialId((prev) => {
-        const next = { ...prev };
-        for (const d of detRows) next[d.material_id] = d.values || {};
-        return next;
-      });
-    },
-    [isAdmin, showAdmin]
-  );
-  // -----------------------------------------------------
-  // Standort ändern (bulk)
-  // -----------------------------------------------------
   const updateStandortBulk = useCallback(
     async (ids, neuerStandort) => {
+      if (!permissions.canEditStandort) return;
+
       const arr = Array.from(ids || []);
       if (arr.length === 0) return;
 
       const userId = await getCurrentUserId();
-
       const oldMap = {};
       for (const m of material) oldMap[m.id] = m.standort;
 
@@ -623,17 +628,14 @@ export default function App() {
       setMaterial((prev) => prev.map((m) => (arr.includes(m.id) ? { ...m, standort: neuerStandort } : m)));
       setSelectedIds(new Set());
     },
-    [material]
+    [material, permissions.canEditStandort]
   );
 
-  // -----------------------------------------------------
-  // Standort ändern (single)
-  // -----------------------------------------------------
   const updateStandort = useCallback(
     async (item, neuerStandort) => {
+      if (!permissions.canEditStandort) return;
       if (item.standort === neuerStandort) return;
 
-      // Boot: Dialog
       if (item.kategorie === "Boote" && item.bundle_id) {
         const bundleItems = material.filter((m) => m.bundle_id === item.bundle_id);
 
@@ -668,7 +670,6 @@ export default function App() {
         return;
       }
 
-      // Satz-Dialog (Skulls/Riemen)
       if ((item.kategorie === "Skulls" || item.kategorie === "Riemen") && item.bundle_id) {
         const setItems = material.filter((m) => m.bundle_id === item.bundle_id && m.kategorie === item.kategorie);
         setMoveSetDialog({
@@ -680,7 +681,6 @@ export default function App() {
         return;
       }
 
-      // normal
       const alterStandort = item.standort;
       const userId = await getCurrentUserId();
 
@@ -700,23 +700,18 @@ export default function App() {
 
       setMaterial((prev) => prev.map((m) => (m.id === item.id ? { ...m, standort: neuerStandort } : m)));
     },
-    [material, detailsByMaterialId]
+    [detailsByMaterialId, material, permissions.canEditStandort]
   );
 
-  // -----------------------------------------------------
-  // Confirm Boot Move (inkl. Kapazitätswarnung)
-  // -----------------------------------------------------
   const confirmMoveBoat = useCallback(async () => {
-    if (!moveBoatDialog) return;
+    if (!moveBoatDialog || !permissions.canEditStandort) return;
 
     const { boat, newStandort, move } = moveBoatDialog;
     const ids = new Set([boat.id]);
-
     const bundleItems = material.filter((m) => m.bundle_id && m.bundle_id === boat.bundle_id);
 
     for (const it of bundleItems) {
       if (it.id === boat.id) continue;
-
       if (it.kategorie === "Rollsitze" && move.rollsitze) ids.add(it.id);
       if (it.kategorie === "Hüllen" && move.huellen) ids.add(it.id);
 
@@ -729,10 +724,7 @@ export default function App() {
 
         if (isSkull && move.skullAusleger) ids.add(it.id);
         if (isRiemen && move.riemenAusleger) ids.add(it.id);
-
-        if (!isSkull && !isRiemen) {
-          if (move.skullAusleger && move.riemenAusleger) ids.add(it.id);
-        }
+        if (!isSkull && !isRiemen && move.skullAusleger && move.riemenAusleger) ids.add(it.id);
       }
     }
 
@@ -761,9 +753,8 @@ export default function App() {
 
     await updateStandortBulk(ids, newStandort);
     setMoveBoatDialog(null);
-  }, [moveBoatDialog, material, detailsByMaterialId, updateStandortBulk, getBootCapacity]);
+  }, [detailsByMaterialId, material, moveBoatDialog, permissions.canEditStandort, updateStandortBulk]);
 
-  // ✅ BULK Kapazität prüfen (für mehrere Boote)
   const checkBulkCapacity = useCallback(
     (idsArray, targetStandort) => {
       const boatsToMove = (idsArray || [])
@@ -773,14 +764,13 @@ export default function App() {
       if (boatsToMove.length === 0) return null;
 
       const movingBySeats = {};
-      for (const b of boatsToMove) {
-        const seats = detailsByMaterialId?.[b.id]?.plaetze;
+      for (const boat of boatsToMove) {
+        const seats = detailsByMaterialId?.[boat.id]?.plaetze;
         if (typeof seats !== "number") continue;
         movingBySeats[seats] = (movingBySeats[seats] || 0) + 1;
       }
 
       const issues = [];
-
       for (const [seatsStr, countMoving] of Object.entries(movingBySeats)) {
         const seats = Number(seatsStr);
         const cap = getBootCapacity(targetStandort, seats);
@@ -803,18 +793,12 @@ export default function App() {
 
       return {
         title: "Kein Bootsplatz frei",
-        message:
-          `Am Standort ${targetStandort} wird die Kapazität überschritten:\n\n` +
-          issues.map((x) => `• ${x}`).join("\n") +
-          `\n\nTrotzdem verschieben?`,
+        message: `Am Standort ${targetStandort} wird die Kapazität überschritten:\n\n${issues.map((x) => `• ${x}`).join("\n")}\n\nTrotzdem verschieben?`,
       };
     },
-    [material, detailsByMaterialId, getBootCapacity]
+    [detailsByMaterialId, material]
   );
 
-  // -----------------------------------------------------
-  // Auswahl-Listen für UI (gruppiert)
-  // -----------------------------------------------------
   const selectedItemsList = Array.from(selectedIds)
     .map((id) => material.find((m) => m.id === id))
     .filter(Boolean);
@@ -832,7 +816,9 @@ export default function App() {
 
   const selectedCategoryOrder = Object.keys(selectedItemsByCategory).sort((a, b) => a.localeCompare(b));
 
-  const bulkSelectedItems = (bulkMoveConfirm?.ids || []).map((id) => material.find((m) => m.id === id)).filter(Boolean);
+  const bulkSelectedItems = (bulkMoveConfirm?.ids || [])
+    .map((id) => material.find((m) => m.id === id))
+    .filter(Boolean);
 
   const bulkItemsByCategory = bulkSelectedItems.reduce((acc, it) => {
     const cat = it.kategorie || "Unbekannt";
@@ -847,78 +833,73 @@ export default function App() {
 
   const bulkCategoryOrder = Object.keys(bulkItemsByCategory).sort((a, b) => a.localeCompare(b));
 
-  // -----------------------------------------------------
-  // Confirm Set Move
-  // -----------------------------------------------------
   const confirmMoveSet = useCallback(async () => {
-    if (!moveSetDialog) return;
+    if (!moveSetDialog || !permissions.canEditStandort) return;
     const ids = new Set(Array.from(moveSetDialog.selectedIds || []));
-    if (ids.size === 0) return setMoveSetDialog(null);
+    if (ids.size === 0) {
+      setMoveSetDialog(null);
+      return;
+    }
     await updateStandortBulk(ids, moveSetDialog.newStandort);
     setMoveSetDialog(null);
-  }, [moveSetDialog, updateStandortBulk]);
+  }, [moveSetDialog, permissions.canEditStandort, updateStandortBulk]);
 
-  // -----------------------------------------------------
-  // Bulk Auswahl
-  // -----------------------------------------------------
   const toggleSelect = useCallback((id, checked) => {
+    if (!permissions.canEditStandort) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id);
       else next.delete(id);
       return next;
     });
-  }, []);
+  }, [permissions.canEditStandort]);
 
   const selectSet = useCallback(
-    (set_id) => {
-      if (!set_id) return;
+    (setId) => {
+      if (!permissions.canEditStandort || !setId) return;
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        material.filter((m) => m.set_id === set_id).forEach((m) => next.add(m.id));
+        material.filter((m) => m.set_id === setId).forEach((m) => next.add(m.id));
         return next;
       });
     },
-    [material]
+    [material, permissions.canEditStandort]
   );
 
   const selectBundle = useCallback(
-    (bundle_id) => {
-      if (!bundle_id) return;
+    (bundleId) => {
+      if (!permissions.canEditStandort || !bundleId) return;
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        material.filter((m) => m.bundle_id === bundle_id).forEach((m) => next.add(m.id));
+        material.filter((m) => m.bundle_id === bundleId).forEach((m) => next.add(m.id));
         return next;
       });
     },
-    [material]
+    [material, permissions.canEditStandort]
   );
 
   const selectPair = useCallback(
-    (pair_id) => {
-      if (!pair_id) return;
+    (pairId) => {
+      if (!permissions.canEditStandort || !pairId) return;
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        material.filter((m) => m.pair_id === pair_id).forEach((m) => next.add(m.id));
+        material.filter((m) => m.pair_id === pairId).forEach((m) => next.add(m.id));
         return next;
       });
     },
-    [material]
+    [material, permissions.canEditStandort]
   );
 
-  // -----------------------------------------------------
-  // LÖSCHEN
-  // -----------------------------------------------------
   const openDeleteDialog = useCallback(
     (item) => {
-      if (!showAdmin || !isAdmin) return;
+      if (!permissions.canDeleteMaterial || !(showAdmin && permissions.isAdmin)) return;
       setDeleteItem(item);
     },
-    [isAdmin, showAdmin]
+    [permissions.canDeleteMaterial, permissions.isAdmin, showAdmin]
   );
 
   const deleteMaterialConfirmed = useCallback(async () => {
-    if (!deleteItem || !isAdmin) return;
+    if (!deleteItem || !permissions.canDeleteMaterial) return;
 
     const { error } = await supabase.from("material").delete().eq("id", deleteItem.id);
     if (error) {
@@ -932,9 +913,8 @@ export default function App() {
       delete copy[deleteItem.id];
       return copy;
     });
-
     setDeleteItem(null);
-  }, [deleteItem, isAdmin]);
+  }, [deleteItem, permissions.canDeleteMaterial]);
 
   if (!session) return <Auth />;
 
@@ -946,52 +926,72 @@ export default function App() {
             <img src={brgLogo} alt="Bonner Rudergesellschaft" className="club-logo" />
             <img src={srvLogo} alt="Siegburger Ruderverein" className="club-logo" />
           </div>
-          <h1 className="header-title">TGSB Material Verwaltung</h1>
+
+          <div>
+            <h1 className="header-title">TGSB Material Verwaltung</h1>
+            <div className="role-hint">
+              Eingeloggt als <span className="role-badge">{permissions.role}</span>
+            </div>
+          </div>
         </div>
-        < div style= {{ display : "flex", gap: "10px", flexDirection: "column", alignItems: "flex-end" }}>
-          {isAdmin && (
-            <button
-              onClick={() => window.open("/statistik.html", "_blank", "noopener,noreferrer")}>
+
+        <div style={{ display: "flex", gap: "10px", flexDirection: "column", alignItems: "flex-end" }}>
+          {permissions.canViewStatistics && (
+            <button onClick={() => window.open("/statistik.html", "_blank", "noopener,noreferrer")}>
               Statistik
             </button>
           )}
-        <div>  
-        <div>
+
           <button onClick={() => window.open("/tabelle.html", "_blank", "noopener,noreferrer")}>
             Tabelle
           </button>
-        </div> 
 
-        </div>
+          <button onClick={() => window.open("/materialverlauf.html", "_blank", "noopener,noreferrer")}>
+            Materialverlauf
+          </button>
+
           <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
             Digitale Bootshalle
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {isAdmin && (
-            <button
-              className={`admin-toggle ${showAdmin ? "is-on" : ""}`}
-              onClick={() => setShowAdmin((s) => !s)}
-            >
-              {showAdmin ? "Admin verlassen" : "Admin"}
-            </button>
-          )}
-          <button className="logout" onClick={() => supabase.auth.signOut()}>
-            Logout
-          </button>
-        </div>
+        <div style={{ display: "grid", gap: 10, justifyItems: "end" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {permissions.canUseAdminPanel && (
+              <button
+                className={`admin-toggle ${showAdmin ? "is-on" : ""}`}
+                onClick={() => setShowAdmin((s) => !s)}
+              >
+                {showAdmin ? "Admin verlassen" : "Admin"}
+              </button>
+            )}
 
-        <div style={{ fontSize: 12, opacity: 0.8 }}>
-          Online: <strong>{onlineCount}</strong>
+            <button className="logout" onClick={() => supabase.auth.signOut()}>
+              Logout
+            </button>
+          </div>
+
+          <div style={{ fontSize: 12, opacity: 0.8 }}>
+            Online: <strong>{onlineCount}</strong>
+          </div>
         </div>
       </div>
 
-      {isAdmin && showAdmin && (
-        <AdminPanel addBoatWithSeatItems={addBoatWithSeatItems} addSkullsSet={addSkullsSet} addRiemenSetPairs={addRiemenSetPairs} />
+      {!permissions.canEditStandort && (
+        <div className="readonly-note">
+          Besucher-Modus: Standorte, Details, Tabelle und digitale Bootshalle sind nur lesbar. Statistik ist sichtbar.
+        </div>
       )}
 
-      {selectedIds.size > 0 && (
+      {permissions.canUseAdminPanel && showAdmin && (
+        <AdminPanel
+          addBoatWithSeatItems={addBoatWithSeatItems}
+          addSkullsSet={addSkullsSet}
+          addRiemenSetPairs={addRiemenSetPairs}
+        />
+      )}
+
+      {permissions.canEditStandort && selectedIds.size > 0 && (
         <div className="card" style={{ position: "sticky", top: 10, zIndex: 5 }}>
           <h3>Auswahl: {selectedIds.size} Elemente</h3>
 
@@ -1001,11 +1001,11 @@ export default function App() {
             <select
               value={bulkTarget}
               onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
+                const value = e.target.value;
+                if (!value) return;
 
                 setBulkMoveConfirm({
-                  newStandort: v,
+                  newStandort: value,
                   ids: Array.from(selectedIds),
                 });
 
@@ -1032,7 +1032,11 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            <button onClick={() => setShowSelectedList((s) => !s)} style={{ width: "fit-content" }} title="Auswahl-Liste auf-/zuklappen">
+            <button
+              onClick={() => setShowSelectedList((s) => !s)}
+              style={{ width: "fit-content" }}
+              title="Auswahl-Liste auf-/zuklappen"
+            >
               {showSelectedList ? "▼ Auswahl anzeigen" : "▶ Auswahl anzeigen"}
             </button>
 
@@ -1102,7 +1106,10 @@ export default function App() {
         updateStandort={updateStandort}
         openDeleteDialog={openDeleteDialog}
         setOpenHistoryId={setOpenHistoryId}
-        showAdmin={showAdmin && isAdmin}
+        showAdmin={permissions.canDeleteMaterial && showAdmin}
+        canEditStandort={permissions.canEditStandort}
+        canViewHistory={permissions.canViewHistory}
+        canOpenDetails
         loadHistory={loadHistory}
         onOpenDetails={(id) => setOpenDetailsId(id)}
         selectedIds={selectedIds}
@@ -1112,7 +1119,7 @@ export default function App() {
         selectPair={selectPair}
       />
 
-      {openHistoryId && (
+      {openHistoryId && permissions.canViewHistory && (
         <HistoryModal
           materialName={material.find((m) => m.id === openHistoryId)?.name || "Unbekannt"}
           entries={history[openHistoryId] || []}
@@ -1127,16 +1134,22 @@ export default function App() {
           values={detailsByMaterialId[openDetailsId] || {}}
           onClose={() => setOpenDetailsId(null)}
           onSave={(vals) => saveDetails(openDetailsId, vals)}
-          canEdit={true}
-          isAdmin={isAdmin}
+          canEdit={permissions.canEditDetails}
+          isAdmin={permissions.isAdmin}
           onSaveName={saveItemName}
           onRenameBundleBaseName={renameBundleBaseName}
         />
       )}
 
-      {deleteItem && <DeleteModal materialName={deleteItem?.name || "Unbekannt"} onCancel={() => setDeleteItem(null)} onConfirm={deleteMaterialConfirmed} />}
+      {deleteItem && (
+        <DeleteModal
+          materialName={deleteItem?.name || "Unbekannt"}
+          onCancel={() => setDeleteItem(null)}
+          onConfirm={deleteMaterialConfirmed}
+        />
+      )}
 
-      {moveBoatDialog && (
+      {moveBoatDialog && permissions.canEditStandort && (
         <MoveBoatModal
           boatName={moveBoatDialog.boat?.name || "Boot"}
           newStandort={moveBoatDialog.newStandort}
@@ -1146,7 +1159,9 @@ export default function App() {
           onToggle={(key) =>
             setMoveBoatDialog((prev) => {
               const avail = prev?.availability || {};
-              if ((key === "skullAusleger" && !avail.skullAusleger) || (key === "riemenAusleger" && !avail.riemenAusleger)) return prev;
+              if ((key === "skullAusleger" && !avail.skullAusleger) || (key === "riemenAusleger" && !avail.riemenAusleger)) {
+                return prev;
+              }
               return { ...prev, move: { ...prev.move, [key]: !prev.move[key] } };
             })
           }
@@ -1155,7 +1170,7 @@ export default function App() {
         />
       )}
 
-      {moveSetDialog && (
+      {moveSetDialog && permissions.canEditStandort && (
         <MoveSetModal
           title={`${moveSetDialog.item?.kategorie || "Satz"} verschieben`}
           itemName={moveSetDialog.item?.name || ""}
@@ -1178,7 +1193,7 @@ export default function App() {
         />
       )}
 
-      {capacityConfirm && (
+      {capacityConfirm && permissions.canEditStandort && (
         <CapacityConfirmModal
           title={capacityConfirm.title}
           message={capacityConfirm.message}
@@ -1191,7 +1206,7 @@ export default function App() {
         />
       )}
 
-      {bulkMoveConfirm && (
+      {bulkMoveConfirm && permissions.canEditStandort && (
         <BulkMoveConfirmModal
           newStandort={bulkMoveConfirm.newStandort}
           itemsGrouped={bulkItemsByCategory}
@@ -1204,8 +1219,8 @@ export default function App() {
           }}
           onConfirm={async () => {
             const idsArr = bulkMoveConfirm.ids;
-
             const warn = checkBulkCapacity(idsArr, bulkMoveConfirm.newStandort);
+
             if (warn) {
               setBulkCapacityConfirm({
                 ...warn,
@@ -1222,7 +1237,7 @@ export default function App() {
         />
       )}
 
-      {bulkCapacityConfirm && (
+      {bulkCapacityConfirm && permissions.canEditStandort && (
         <CapacityConfirmModal
           title={bulkCapacityConfirm.title}
           message={bulkCapacityConfirm.message}

@@ -29,16 +29,11 @@
       --select-text: #eef4ff;
       --select-option-bg: #223552;
       --select-option-text: #eef4ff;
-      --select-option-hover: #2e466b;
       --select-option-selected: #3b5b8d;
     }
 
     * { box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       color: var(--text);
@@ -64,12 +59,7 @@
       box-shadow: var(--shadow);
     }
 
-    .hero {
-      padding: 24px;
-      display: grid;
-      gap: 16px;
-    }
-
+    .hero { padding: 24px; display: grid; gap: 16px; }
     .hero-top {
       display: flex;
       justify-content: space-between;
@@ -79,12 +69,7 @@
     }
 
     h1, h2, h3 { margin: 0; }
-
-    h1 {
-      font-size: 34px;
-      font-weight: 900;
-      letter-spacing: 0.2px;
-    }
+    h1 { font-size: 34px; font-weight: 900; letter-spacing: 0.2px; }
 
     .subtitle {
       margin-top: 8px;
@@ -94,12 +79,7 @@
       max-width: 980px;
     }
 
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     button, select, input, textarea {
       border: 1px solid var(--border);
@@ -110,27 +90,12 @@
       font: inherit;
     }
 
-    button {
-      cursor: pointer;
-      font-weight: 700;
-    }
+    button { cursor: pointer; font-weight: 700; }
+    button:hover:not(:disabled) { background: rgba(255,255,255,0.10); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    button:hover:not(:disabled) {
-      background: rgba(255,255,255,0.10);
-    }
+    input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: var(--muted);
-      opacity: 1;
-    }
-
-    /* Lesbare Selects in Darkmode */
     select {
       background-color: var(--select-bg);
       color: var(--select-text);
@@ -142,15 +107,12 @@
       background-image:
         linear-gradient(45deg, transparent 50%, #dbe8ff 50%),
         linear-gradient(135deg, #dbe8ff 50%, transparent 50%);
-      background-position:
-        calc(100% - 18px) calc(50% - 2px),
-        calc(100% - 12px) calc(50% - 2px);
+      background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
       background-size: 6px 6px, 6px 6px;
       background-repeat: no-repeat;
     }
 
-    select:hover,
-    select:focus {
+    select:hover, select:focus {
       background-color: var(--select-bg-open);
       color: var(--select-text);
       outline: none;
@@ -158,23 +120,9 @@
       box-shadow: 0 0 0 3px rgba(99,164,255,0.14);
     }
 
-    select option {
-      background-color: var(--select-option-bg);
-      color: var(--select-option-text);
-    }
-
-    select option:checked,
-    select option[selected] {
-      background-color: var(--select-option-selected);
-      color: var(--select-option-text);
-    }
-
-    /* Für manche Browser/Windows-Systemthemes */
-    select,
-    select option,
-    select optgroup {
-      color-scheme: dark;
-    }
+    select option { background-color: var(--select-option-bg); color: var(--select-option-text); }
+    select option:checked, select option[selected] { background-color: var(--select-option-selected); color: var(--select-option-text); }
+    select, select option, select optgroup { color-scheme: dark; }
 
     .status {
       padding: 12px 14px;
@@ -186,18 +134,8 @@
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.05);
     }
-
-    .status.error {
-      color: #ffd8d8;
-      background: rgba(255,123,123,0.12);
-      border-color: rgba(255,123,123,0.28);
-    }
-
-    .status.success {
-      color: #d9ffef;
-      background: rgba(72,213,151,0.12);
-      border-color: rgba(72,213,151,0.28);
-    }
+    .status.error { color: #ffd8d8; background: rgba(255,123,123,0.12); border-color: rgba(255,123,123,0.28); }
+    .status.success { color: #d9ffef; background: rgba(72,213,151,0.12); border-color: rgba(72,213,151,0.28); }
 
     .sticky-overlay {
       position: sticky;
@@ -208,10 +146,7 @@
       box-shadow: 0 10px 24px rgba(0,0,0,0.18);
       display: none;
     }
-
-    .sticky-overlay.active {
-      display: block;
-    }
+    .sticky-overlay.active { display: block; }
 
     .sticky-overlay-top {
       padding: 12px 16px;
@@ -222,12 +157,7 @@
       background: linear-gradient(180deg, rgba(19,32,58,0.98), rgba(24,41,70,0.98));
     }
 
-    .sticky-category-left {
-      display: grid;
-      gap: 2px;
-      min-width: 0;
-    }
-
+    .sticky-category-left { display: grid; gap: 2px; min-width: 0; }
     .sticky-category-label {
       color: var(--muted);
       font-size: 11px;
@@ -235,50 +165,15 @@
       letter-spacing: 0.45px;
       font-weight: 800;
     }
+    .sticky-category-value { font-size: 20px; font-weight: 900; line-height: 1.1; }
+    .sticky-category-meta { color: var(--muted); font-size: 13px; white-space: nowrap; text-align: right; }
 
-    .sticky-category-value {
-      font-size: 20px;
-      font-weight: 900;
-      line-height: 1.1;
-    }
+    .sticky-head-wrap { display: none; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.06); background: rgba(6,12,24,0.94); }
+    .sticky-head-wrap.show { display: block; }
+    .sticky-head-scroller { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+    .sticky-head-scroller::-webkit-scrollbar { display: none; }
 
-    .sticky-category-meta {
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .sticky-head-wrap {
-      display: none;
-      overflow: hidden;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      background: rgba(6,12,24,0.94);
-    }
-
-    .sticky-head-wrap.show {
-      display: block;
-    }
-
-    .sticky-head-scroller {
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-
-    .sticky-head-scroller::-webkit-scrollbar {
-      display: none;
-    }
-
-    .sticky-head-table {
-      width: 100%;
-      min-width: max-content;
-      border-collapse: collapse;
-      table-layout: fixed;
-      background: transparent;
-    }
-
+    .sticky-head-table { width: 100%; min-width: max-content; border-collapse: collapse; table-layout: fixed; background: transparent; }
     .sticky-head-table th {
       color: #b9c9e6;
       font-size: 11px;
@@ -291,11 +186,7 @@
       border-bottom: 0;
     }
 
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-    }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 
     .kpi {
       padding: 18px;
@@ -323,46 +214,15 @@
     .kpi.violet::after { background: var(--violet); }
     .kpi.orange::after { background: var(--orange); }
 
-    .kpi-label {
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .kpi-label { color: var(--muted); font-size: 13px; }
+    .kpi-value { font-size: 32px; font-weight: 900; line-height: 1; }
+    .kpi-sub { color: var(--muted); font-size: 13px; line-height: 1.45; }
 
-    .kpi-value {
-      font-size: 32px;
-      font-weight: 900;
-      line-height: 1;
-    }
+    .card { padding: 18px; display: grid; gap: 12px; }
+    .section-title { font-size: 20px; font-weight: 850; }
+    .section-subtitle { color: var(--muted); font-size: 13px; line-height: 1.45; }
 
-    .kpi-sub {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .card {
-      padding: 18px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .section-title {
-      font-size: 20px;
-      font-weight: 850;
-    }
-
-    .section-subtitle {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .category-anchor-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
+    .category-anchor-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .anchor-pill {
       display: inline-flex;
       align-items: center;
@@ -376,44 +236,12 @@
       background: rgba(255,255,255,0.05);
     }
 
-    .anchor-pill:hover {
-      background: rgba(255,255,255,0.09);
-    }
+    .table-controls { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .sort-group { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sort-label { color: var(--muted); font-size: 13px; font-weight: 700; }
 
-    .table-controls {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .sort-group {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .sort-label {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-      position: relative;
-    }
-
-    table {
-      width: 100%;
-      min-width: 1300px;
-      border-collapse: collapse;
-      font-size: 14px;
-      table-layout: fixed;
-    }
-
+    .table-wrap { overflow-x: auto; position: relative; }
+    table { width: 100%; min-width: 1300px; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
     th, td {
       text-align: left;
       padding: 11px 8px;
@@ -429,34 +257,12 @@
       text-transform: uppercase;
       letter-spacing: 0.35px;
       background: rgba(10,18,32,0.78);
-      position: static;
-      top: auto;
-      z-index: 1;
-      backdrop-filter: blur(4px);
     }
 
-    .table-wrap thead th:first-child { border-top-left-radius: 10px; }
-    .table-wrap thead th:last-child { border-top-right-radius: 10px; }
-
-    th.col-name, td.col-name {
-      width: 180px;
-      min-width: 180px;
-    }
-
-    th.col-standort, td.col-standort {
-      width: 170px;
-      min-width: 170px;
-    }
-
-    th.col-schuhe, td.col-schuhe {
-      width: 360px;
-      min-width: 360px;
-    }
-
-    th.col-steuermann, td.col-steuermann {
-      width: 170px;
-      min-width: 170px;
-    }
+    th.col-name, td.col-name { width: 180px; min-width: 180px; }
+    th.col-standort, td.col-standort { width: 170px; min-width: 170px; }
+    th.col-schuhe, td.col-schuhe { width: 360px; min-width: 360px; }
+    th.col-steuermann, td.col-steuermann { width: 170px; min-width: 170px; }
 
     .muted { color: var(--muted); }
 
@@ -472,12 +278,7 @@
       background: rgba(255,255,255,0.05);
     }
 
-    .bool-yes,
-    .bool-no,
-    .state-good,
-    .state-ok,
-    .state-bad,
-    .state-warn {
+    .bool-yes, .bool-no, .state-good, .state-ok, .state-bad, .state-warn {
       display: inline-block;
       white-space: nowrap;
       font-weight: 700;
@@ -485,85 +286,26 @@
 
     .bool-yes { color: var(--green); }
     .bool-no { color: var(--red); }
-
     .state-good { color: var(--green); }
     .state-ok { color: var(--yellow); }
     .state-bad { color: var(--red); }
     .state-warn { color: var(--orange); }
 
-    .category-details {
-      border-radius: 18px;
-      overflow: hidden;
-      scroll-margin-top: 120px;
-    }
+    .category-details { border-radius: 18px; overflow: hidden; scroll-margin-top: 120px; }
+    .category-details > summary { list-style: none; cursor: pointer; padding: 0; }
+    .category-details > summary::-webkit-details-marker { display: none; }
 
-    .category-details > summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 0;
-    }
+    .summary-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .summary-left { display: grid; gap: 4px; }
+    .summary-right { display: flex; align-items: center; gap: 10px; }
+    .summary-toggle { color: var(--muted); font-size: 13px; font-weight: 700; }
 
-    .category-details > summary::-webkit-details-marker {
-      display: none;
-    }
+    .category-content { padding-top: 8px; }
+    .footer-note { color: var(--muted); font-size: 12px; text-align: center; padding-bottom: 8px; }
 
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .summary-left {
-      display: grid;
-      gap: 4px;
-    }
-
-    .summary-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .summary-toggle {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .category-content {
-      padding-top: 8px;
-    }
-
-    .footer-note {
-      color: var(--muted);
-      font-size: 12px;
-      text-align: center;
-      padding-bottom: 8px;
-    }
-
-    .shoes-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      min-width: 0;
-      width: 100%;
-    }
-
-    .shoe-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      align-items: baseline;
-      line-height: 1.5;
-      white-space: normal;
-    }
-
-    .shoe-place {
-      font-weight: 800;
-      white-space: nowrap;
-    }
+    .shoes-list { display: flex; flex-direction: column; gap: 6px; min-width: 0; width: 100%; }
+    .shoe-line { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; line-height: 1.5; white-space: normal; }
+    .shoe-place { font-weight: 800; white-space: nowrap; }
 
     .editable-cell {
       cursor: pointer;
@@ -571,11 +313,7 @@
       border-radius: 8px;
       transition: background 0.15s ease;
     }
-
-    .editable-cell:hover {
-      background: rgba(99,164,255,0.10);
-    }
-
+    .editable-cell:hover { background: rgba(99,164,255,0.10); }
     .editable-cell::after {
       content: "✎";
       position: absolute;
@@ -586,17 +324,8 @@
       opacity: 0.75;
     }
 
-    .edit-mode-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .admin-on {
-      color: #d9ffef;
-    }
+    .edit-mode-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    .admin-on { color: #d9ffef; }
 
     .modal-backdrop {
       position: fixed;
@@ -609,9 +338,7 @@
       z-index: 9999;
     }
 
-    .modal-backdrop.show {
-      display: flex;
-    }
+    .modal-backdrop.show { display: flex; }
 
     .modal {
       width: min(760px, 100%);
@@ -624,36 +351,11 @@
       gap: 14px;
     }
 
-    .modal-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .modal-title {
-      font-size: 20px;
-      font-weight: 900;
-    }
-
-    .modal-subtitle {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .modal-grid {
-      display: grid;
-      gap: 12px;
-    }
-
-    .field-label {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
+    .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .modal-title { font-size: 20px; font-weight: 900; }
+    .modal-subtitle { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .modal-grid { display: grid; gap: 12px; }
+    .field-label { color: var(--muted); font-size: 12px; font-weight: 700; margin-bottom: 6px; }
     textarea#editValueInput {
       min-height: 200px;
       resize: vertical;
@@ -661,26 +363,9 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       line-height: 1.45;
     }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .multi-line-value {
-      display: grid;
-      gap: 4px;
-      line-height: 1.45;
-      white-space: normal;
-    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .multi-line-value { display: grid; gap: 4px; line-height: 1.45; white-space: normal; }
 
     @media (max-width: 1100px) {
       .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -690,54 +375,14 @@
       .grid-4 { grid-template-columns: 1fr; }
       .page { padding: 14px; }
       .hero, .card { padding: 14px; }
-
       h1 { font-size: 28px; }
       .kpi-value { font-size: 26px; }
-
-      .sticky-overlay {
-        top: 6px;
-      }
-
-      .sticky-overlay-top {
-        padding: 12px 14px;
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .sticky-category-meta {
-        text-align: left;
-        white-space: normal;
-      }
-
-      .sticky-head-table th,
-      thead th,
-      td {
-        padding: 10px 6px;
-        font-size: 13px;
-      }
-
-      .table-controls {
-        justify-content: stretch;
-      }
-
-      .sort-group {
-        width: 100%;
-      }
-
-      .sort-group select,
-      .sort-group button {
-        flex: 1 1 auto;
-      }
-
-      th.col-schuhe, td.col-schuhe {
-        width: 320px;
-        min-width: 320px;
-      }
-
-      th.col-steuermann, td.col-steuermann {
-        width: 150px;
-        min-width: 150px;
-      }
+      .sticky-overlay { top: 6px; }
+      .sticky-overlay-top { padding: 12px 14px; flex-direction: column; align-items: flex-start; }
+      .sticky-category-meta { text-align: left; white-space: normal; }
+      .sticky-head-table th, thead th, td { padding: 10px 6px; font-size: 13px; }
+      th.col-schuhe, td.col-schuhe { width: 320px; min-width: 320px; }
+      th.col-steuermann, td.col-steuermann { width: 150px; min-width: 150px; }
     }
   </style>
 </head>
@@ -749,7 +394,7 @@
           <h1>Materialübersicht</h1>
           <div class="subtitle">
             Alle Materialien werden nach Kategorie gruppiert und tabellarisch mit ihren Details angezeigt.
-            Kategorien sind ausklappbar. Optionaler Bearbeitungsmodus nur für Admins.
+            Visitor: nur Ansicht. User und Admin: Bearbeitungsmodus für Detailfelder.
           </div>
         </div>
 
@@ -861,7 +506,7 @@
           <textarea id="editValueInput" spellcheck="false"></textarea>
           <div class="hint">
             Für einfache Werte einfach Text eingeben. Für Listen/Objekte kannst du auch JSON eingeben.
-            Leer lassen speichert einen leeren Wert.
+            Diese Seite bearbeitet nur Detailfelder, nicht Materialnamen.
           </div>
         </div>
       </div>
@@ -875,11 +520,8 @@
 
   <script>
     const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
-    const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
-
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
     const CATEGORY_ORDER = ["Boote", "Skulls", "Riemen", "Ausleger", "Hüllen", "Rollsitze", "Sonstiges"];
-
     const CATEGORY_COLORS = {
       Boote: "#63a4ff",
       Skulls: "#48d597",
@@ -890,10 +532,6 @@
       Sonstiges: "#ff76c8",
       Unbekannt: "#9db2d1"
     };
-
-    if (!window.supabase) {
-      throw new Error("Supabase-Bibliothek wurde nicht geladen.");
-    }
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -928,14 +566,19 @@
 
     let allRows = [];
     let currentUser = null;
-    let isAdmin = false;
+    let currentRole = "visitor";
+    let canEditDetails = false;
     let editMode = false;
     let currentEditContext = null;
     let stickyRaf = null;
-    let currentSort = {
-      field: "default",
-      direction: "asc"
-    };
+    let currentSort = { field: "default", direction: "asc" };
+
+    function normalizeRole(rawRole) {
+      const role = String(rawRole || "").trim().toLowerCase();
+      if (role === "admin") return "admin";
+      if (role === "user") return "user";
+      return "visitor";
+    }
 
     function setStatus(message, type = "default") {
       els.status.className = "status";
@@ -981,16 +624,13 @@
     function getDetailValue(obj, keys) {
       for (const key of keys) {
         const value = obj?.[key];
-        if (value !== undefined && value !== null && value !== "") {
-          return value;
-        }
+        if (value !== undefined && value !== null && value !== "") return value;
       }
       return null;
     }
 
     function normalizeBoatDetails(details = {}) {
       const normalized = structuredClone(details || {});
-
       const aliasMap = {
         Bootsform: ["Bootsform", "bootsform", "boots_form"],
         gewicht_kg: ["gewicht_kg", "gewicht", "gewichtKg"],
@@ -1001,22 +641,14 @@
         schuhe: ["schuhe", "Schuhe"],
         plaetze: ["plaetze", "plätze", "sitze", "sitzplaetze", "sitzplätze"],
         steuermann_verfuegbar: [
-          "steuermann_verfuegbar",
-          "steuermann_verfügbar",
-          "steuermann verfuegbar",
-          "steuermann verfügbar",
-          "steuermann",
-          "cox",
-          "cox_available",
-          "cox_verfuegbar"
+          "steuermann_verfuegbar", "steuermann_verfügbar", "steuermann verfuegbar",
+          "steuermann verfügbar", "steuermann", "cox", "cox_available", "cox_verfuegbar"
         ]
       };
 
       for (const [targetKey, aliases] of Object.entries(aliasMap)) {
         const value = getDetailValue(normalized, aliases);
-        if (value !== null) {
-          normalized[targetKey] = value;
-        }
+        if (value !== null) normalized[targetKey] = value;
       }
 
       return normalized;
@@ -1024,7 +656,6 @@
 
     function getBoatValue(details, key) {
       const boatDetails = normalizeBoatDetails(details || {});
-
       const keyMap = {
         Bootsform: ["Bootsform"],
         gewicht_kg: ["gewicht_kg"],
@@ -1036,16 +667,13 @@
         plaetze: ["plaetze"],
         steuermann_verfuegbar: ["steuermann_verfuegbar"]
       };
-
       return getDetailValue(boatDetails, keyMap[key] || [key]);
     }
 
     function formatDefektValue(value, category) {
       if (category === "Skulls" || category === "Riemen") {
         const isDefekt = normalizeTruthy(value);
-        return isDefekt
-          ? '<span class="bool-no">Ja</span>'
-          : '<span class="bool-yes">Nein</span>';
+        return isDefekt ? '<span class="bool-no">Ja</span>' : '<span class="bool-yes">Nein</span>';
       }
 
       if (typeof value === "boolean") {
@@ -1069,21 +697,15 @@
 
     function formatShoesValue(value) {
       if (value === null || value === undefined || value === "") return "–";
-
       const lines = [];
 
       const pushLine = (platzLabel, entry) => {
         if (!entry || typeof entry !== "object") {
-          lines.push(
-            `<div class="shoe-line"><span class="shoe-place">${escapeHtml(platzLabel)}:</span> ${escapeHtml(String(entry ?? "–"))}</div>`
-          );
+          lines.push(`<div class="shoe-line"><span class="shoe-place">${escapeHtml(platzLabel)}:</span> ${escapeHtml(String(entry ?? "–"))}</div>`);
           return;
         }
-
-        const groesse =
-          entry.groesse ?? entry.größe ?? entry.size ?? entry.schuhgroesse ?? entry.schuhgröße ?? "–";
+        const groesse = entry.groesse ?? entry.größe ?? entry.size ?? entry.schuhgroesse ?? entry.schuhgröße ?? "–";
         const zustand = entry.zustand ?? "–";
-
         lines.push(
           `<div class="shoe-line">
             <span class="shoe-place">${escapeHtml(platzLabel)}:</span>
@@ -1103,7 +725,6 @@
           if (Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== bNum) return aNum - bNum;
           return String(a[0]).localeCompare(String(b[0]), "de");
         });
-
         entries.forEach(([key, entry], index) => {
           const num = Number(String(key).match(/\d+/)?.[0]);
           const platzLabel = Number.isFinite(num) ? `Platz ${num}` : `Platz ${index + 1}`;
@@ -1125,107 +746,51 @@
     function parseEditorValue(raw) {
       const trimmed = raw.trim();
       if (trimmed === "") return "";
-
       if (
-        trimmed.startsWith("{") ||
-        trimmed.startsWith("[") ||
-        trimmed === "true" ||
-        trimmed === "false" ||
-        trimmed === "null" ||
-        /^-?\d+(\.\d+)?$/.test(trimmed)
+        trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed === "true" ||
+        trimmed === "false" || trimmed === "null" || /^-?\d+(\.\d+)?$/.test(trimmed)
       ) {
-        try {
-          return JSON.parse(trimmed);
-        } catch {
-          return raw;
-        }
+        try { return JSON.parse(trimmed); } catch { return raw; }
       }
-
       return raw;
     }
 
     function buildSearchText(row) {
       const detailText = JSON.stringify(row.details || {});
-      return [
-        row.id,
-        row.name,
-        row.kategorie,
-        row.standort,
-        detailText
-      ].join(" ").toLowerCase();
+      return [row.id, row.name, row.kategorie, row.standort, detailText].join(" ").toLowerCase();
     }
 
     function getSkullValue(details, key) {
-      if (key === "Blattform") {
-        return getDetailValue(details, ["blattform", "Blattform"]);
-      }
-      if (key === "Schafttyp") {
-        return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]);
-      }
-      if (key === "Gesamtlänge") {
-        return getDetailValue(details, [
-          "gesamtlaenge_cm",
-          "gesamtlänge_cm",
-          "gesamtlaenge",
-          "gesamtlänge",
-          "Gesamtlänge"
-        ]);
-      }
-      if (key === "Innenheben") {
-        return getDetailValue(details, [
-          "innenhebel_cm",
-          "innenheben_cm",
-          "innenhebel",
-          "innenheben",
-          "Innenheben"
-        ]);
-      }
-      if (key === "defekt") {
-        return getDetailValue(details, ["defekt"]);
-      }
+      if (key === "Blattform") return getDetailValue(details, ["blattform", "Blattform"]);
+      if (key === "Schafttyp") return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]);
+      if (key === "Gesamtlänge") return getDetailValue(details, ["gesamtlaenge_cm", "gesamtlänge_cm", "gesamtlaenge", "gesamtlänge"]);
+      if (key === "Innenheben") return getDetailValue(details, ["innenhebel_cm", "innenheben_cm", "innenhebel", "innenheben"]);
+      if (key === "defekt") return getDetailValue(details, ["defekt"]);
       return details?.[key];
     }
 
-    function getRiemenBlattform(details) {
-      return getDetailValue(details, ["blattform", "Blattform"]);
-    }
-
-    function getRiemenSchaft(details) {
-      return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]);
-    }
-
+    function getRiemenBlattform(details) { return getDetailValue(details, ["blattform", "Blattform"]); }
+    function getRiemenSchaft(details) { return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]); }
     function getRiemenDifferent(details) {
-      return getDetailValue(details, [
-        "unterschiedliche_seiten",
-        "seiten_unterschiedlich",
-        "unterschiedlich",
-        "laengen_unterschiedlich",
-        "längen_unterschiedlich"
-      ]);
+      return getDetailValue(details, ["unterschiedliche_seiten", "seiten_unterschiedlich", "unterschiedlich", "laengen_unterschiedlich", "längen_unterschiedlich"]);
     }
-
-    function getRiemenGripAdjustable(details) {
-      return getDetailValue(details, ["griff_verstellbar"]);
-    }
+    function getRiemenGripAdjustable(details) { return getDetailValue(details, ["griff_verstellbar"]); }
 
     function getRiemenSideValues(details, type) {
       const backbord = details?.backbord || {};
       const steuerbord = details?.steuerbord || {};
-
       if (type === "gesamtlänge") {
         return {
           backbord: getDetailValue(backbord, ["gesamtlaenge_cm", "gesamtlänge_cm", "gesamtlaenge", "gesamtlänge"]),
           steuerbord: getDetailValue(steuerbord, ["gesamtlaenge_cm", "gesamtlänge_cm", "gesamtlaenge", "gesamtlänge"])
         };
       }
-
       if (type === "innenheben") {
         return {
           backbord: getDetailValue(backbord, ["innenhebel_cm", "innenheben_cm", "innenhebel", "innenheben"]),
           steuerbord: getDetailValue(steuerbord, ["innenhebel_cm", "innenheben_cm", "innenhebel", "innenheben"])
         };
       }
-
       return { backbord: null, steuerbord: null };
     }
 
@@ -1235,13 +800,8 @@
 
       if (backbord === null && steuerbord === null) return "–";
 
-      const isDifferent = diffFlag !== null
-        ? normalizeTruthy(diffFlag)
-        : String(backbord ?? "") !== String(steuerbord ?? "");
-
-      if (!isDifferent) {
-        return escapeHtml(String(backbord ?? steuerbord ?? "–"));
-      }
+      const isDifferent = diffFlag !== null ? normalizeTruthy(diffFlag) : String(backbord ?? "") !== String(steuerbord ?? "");
+      if (!isDifferent) return escapeHtml(String(backbord ?? steuerbord ?? "–"));
 
       return `
         <div class="multi-line-value">
@@ -1254,62 +814,27 @@
     function formatValue(value, key = "", category = "", item = null) {
       if (category === "Boote") {
         const details = item?.details || {};
-
-        if (key === "Bootsform") {
-          const v = getBoatValue(details, "Bootsform");
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-
-        if (key === "gewicht_kg") {
-          const v = getBoatValue(details, "gewicht_kg");
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-
+        if (key === "Bootsform") { const v = getBoatValue(details, "Bootsform"); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "gewicht_kg") { const v = getBoatValue(details, "gewicht_kg"); return v === null ? "–" : escapeHtml(String(v)); }
         if (key === "huelle_vorhanden") {
           const v = getBoatValue(details, "huelle_vorhanden");
           if (v === null) return "–";
-          return normalizeTruthy(v)
-            ? '<span class="bool-yes">Ja</span>'
-            : '<span class="bool-no">Nein</span>';
+          return normalizeTruthy(v) ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
         }
-
-        if (key === "huelle_notiz") {
-          const v = getBoatValue(details, "huelle_notiz");
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-
-        if (key === "aktueller_nutzer") {
-          const v = getBoatValue(details, "aktueller_nutzer");
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-
-        if (key === "defekt") {
-          const v = getBoatValue(details, "defekt");
-          return formatDefektValue(v, category);
-        }
-
-        if (key === "schuhe") {
-          const v = getBoatValue(details, "schuhe");
-          return formatShoesValue(v);
-        }
-
-        if (key === "plaetze") {
-          const v = getBoatValue(details, "plaetze");
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-
+        if (key === "huelle_notiz") { const v = getBoatValue(details, "huelle_notiz"); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "aktueller_nutzer") { const v = getBoatValue(details, "aktueller_nutzer"); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "defekt") return formatDefektValue(getBoatValue(details, "defekt"), category);
+        if (key === "schuhe") return formatShoesValue(getBoatValue(details, "schuhe"));
+        if (key === "plaetze") { const v = getBoatValue(details, "plaetze"); return v === null ? "–" : escapeHtml(String(v)); }
         if (key === "steuermann_verfuegbar") {
           const v = getBoatValue(details, "steuermann_verfuegbar");
           if (v === null) return "–";
-          return normalizeTruthy(v)
-            ? '<span class="bool-yes">Ja</span>'
-            : '<span class="bool-no">Nein</span>';
+          return normalizeTruthy(v) ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
         }
       }
 
       if (category === "Skulls") {
         const details = item?.details || {};
-
         if (key === "Blattform") return getSkullValue(details, "Blattform") === null ? "–" : escapeHtml(String(getSkullValue(details, "Blattform")));
         if (key === "Schafttyp") return getSkullValue(details, "Schafttyp") === null ? "–" : escapeHtml(String(getSkullValue(details, "Schafttyp")));
         if (key === "Gesamtlänge") return getSkullValue(details, "Gesamtlänge") === null ? "–" : escapeHtml(String(getSkullValue(details, "Gesamtlänge")));
@@ -1319,75 +844,48 @@
 
       if (category === "Riemen") {
         const details = item?.details || {};
-
-        if (key === "Blattform") {
-          const v = getRiemenBlattform(details);
-          return v === null ? "–" : escapeHtml(String(v));
-        }
-        if (key === "Schaft") {
-          const v = getRiemenSchaft(details);
-          return v === null ? "–" : escapeHtml(String(v));
-        }
+        if (key === "Blattform") { const v = getRiemenBlattform(details); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "Schaft") { const v = getRiemenSchaft(details); return v === null ? "–" : escapeHtml(String(v)); }
         if (key === "Gesamtlänge") return formatRiemenCombined(details, "gesamtlänge");
         if (key === "Innenheben") return formatRiemenCombined(details, "innenheben");
         if (key === "seiten_unterschiedlich") {
           const v = getRiemenDifferent(details);
           if (v === null) return "–";
-          return normalizeTruthy(v)
-            ? '<span class="state-warn">Ja</span>'
-            : '<span class="state-good">Nein</span>';
+          return normalizeTruthy(v) ? '<span class="state-warn">Ja</span>' : '<span class="state-good">Nein</span>';
         }
         if (key === "griff_verstellbar") {
           const v = getRiemenGripAdjustable(details);
           if (v === null) return "–";
-          return normalizeTruthy(v)
-            ? '<span class="bool-yes">Ja</span>'
-            : '<span class="bool-no">Nein</span>';
+          return normalizeTruthy(v) ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
         }
-        if (key === "defekt") {
-          const v = getDetailValue(details, ["defekt"]);
-          return formatDefektValue(v, category);
-        }
+        if (key === "defekt") return formatDefektValue(getDetailValue(details, ["defekt"]), category);
       }
 
       if (key === "schuhe") return formatShoesValue(value);
       if (key === "defekt") return formatDefektValue(value, category);
-
       if (value === null || value === undefined || value === "") return "–";
 
       if (typeof value === "boolean") {
         return value ? '<span class="bool-yes">Ja</span>' : '<span class="bool-no">Nein</span>';
       }
-
       if (Array.isArray(value)) {
         if (!value.length) return "–";
-        return escapeHtml(value.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", "));
+        return escapeHtml(value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", "));
       }
-
       if (typeof value === "object") {
         const entries = Object.entries(value);
         if (!entries.length) return "–";
-        return entries
-          .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}`)
-          .join("<br>");
+        return entries.map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}`).join("<br>");
       }
-
       return escapeHtml(String(value));
     }
 
     function getDetailKeys(items, category) {
       const detailKeysSet = new Set();
-
       for (const item of items) {
-        const details = category === "Boote"
-          ? normalizeBoatDetails(item.details || {})
-          : (item.details || {});
-
+        const details = category === "Boote" ? normalizeBoatDetails(item.details || {}) : (item.details || {});
         for (const [key, value] of Object.entries(details)) {
-          if (key === "defekt") {
-            detailKeysSet.add(key);
-            continue;
-          }
+          if (key === "defekt") { detailKeysSet.add(key); continue; }
           if (value === null || value === undefined || value === "") continue;
           detailKeysSet.add(key);
         }
@@ -1396,20 +894,8 @@
       let detailKeys = [...detailKeysSet];
 
       if (category === "Boote") {
-        const preferred = [
-          "Bootsform",
-          "gewicht_kg",
-          "huelle_vorhanden",
-          "huelle_notiz",
-          "aktueller_nutzer",
-          "defekt",
-          "schuhe",
-          "plaetze",
-          "steuermann_verfuegbar"
-        ];
-
+        const preferred = ["Bootsform", "gewicht_kg", "huelle_vorhanden", "huelle_notiz", "aktueller_nutzer", "defekt", "schuhe", "plaetze", "steuermann_verfuegbar"];
         detailKeys = [...new Set([...detailKeys, ...preferred])];
-
         detailKeys.sort((a, b) => {
           const ai = preferred.indexOf(a);
           const bi = preferred.indexOf(b);
@@ -1418,44 +904,21 @@
           if (bi >= 0) return 1;
           return a.localeCompare(b, "de");
         });
-
-        detailKeys = detailKeys.filter(key => key !== "plaetze");
+        detailKeys = detailKeys.filter((key) => key !== "plaetze");
       } else if (category === "Skulls") {
-        detailKeys = [
-          "Blattform",
-          "Schafttyp",
-          "Gesamtlänge",
-          "Innenheben",
-          "defekt"
-        ];
+        detailKeys = ["Blattform", "Schafttyp", "Gesamtlänge", "Innenheben", "defekt"];
       } else if (category === "Riemen") {
-        detailKeys = [
-          "Blattform",
-          "Schaft",
-          "Gesamtlänge",
-          "Innenheben",
-          "seiten_unterschiedlich",
-          "griff_verstellbar",
-          "defekt"
-        ];
+        detailKeys = ["Blattform", "Schaft", "Gesamtlänge", "Innenheben", "seiten_unterschiedlich", "griff_verstellbar", "defekt"];
       } else {
         detailKeys.sort((a, b) => a.localeCompare(b, "de"));
       }
 
-      return detailKeys.filter(key => key !== "standort");
+      return detailKeys.filter((key) => key !== "standort");
     }
 
     function prettyColumnName(key) {
       const map = {
         Bootsform: "Bootsform",
-        laenge_steuerbord: "Länge Steuerbord",
-        "länge_steuerbord": "Länge Steuerbord",
-        steuerbord_laenge: "Länge Steuerbord",
-        "steuerbord_länge": "Länge Steuerbord",
-        laenge_backbord: "Länge Backbord",
-        "länge_backbord": "Länge Backbord",
-        backbord_laenge: "Länge Backbord",
-        "backbord_länge": "Länge Backbord",
         steuermann_verfuegbar: "Steuermann verfügbar",
         huelle_vorhanden: "Hülle vorhanden",
         huelle_notiz: "Hülle Notiz",
@@ -1481,14 +944,8 @@
 
     function getEditableRawValue(item, key, category) {
       const details = item.details || {};
-
-      if (category === "Boote") {
-        return getBoatValue(details, key);
-      }
-
-      if (category === "Skulls") {
-        return getSkullValue(details, key);
-      }
+      if (category === "Boote") return getBoatValue(details, key);
+      if (category === "Skulls") return getSkullValue(details, key);
 
       if (category === "Riemen") {
         if (key === "Blattform") return getRiemenBlattform(details);
@@ -1508,7 +965,7 @@
       const formattedValue = formatValue(rawValue, key, category, item);
       const extraClass = getColumnClass(key);
 
-      if (!editMode || !isAdmin) {
+      if (!editMode || !canEditDetails) {
         return `<td class="${extraClass}">${formattedValue}</td>`;
       }
 
@@ -1528,50 +985,27 @@
 
     function getSortValue(row, field) {
       const details = row.details || {};
-
       switch (field) {
-        case "name":
-          return row.name || "";
-        case "standort":
-          return row.standort || "";
-        case "kategorie":
-          return row.kategorie || "";
-        case "bootsform":
-          return row.kategorie === "Boote"
-            ? (getBoatValue(details, "Bootsform") || "")
-            : (getDetailValue(details, ["Bootsform", "bootsform"]) || "");
-        case "blattform":
-          return getDetailValue(details, ["blattform", "Blattform"]) || "";
-        case "schaft":
-          return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]) || "";
-        case "gewicht":
-          return row.kategorie === "Boote"
-            ? (getBoatValue(details, "gewicht_kg") || "")
-            : (getDetailValue(details, ["gewicht_kg", "gewicht"]) || "");
-        case "plaetze":
-          return row.kategorie === "Boote"
-            ? (Number(getBoatValue(details, "plaetze")) || 0)
-            : (Number(getDetailValue(details, ["plaetze"])) || 0);
-        case "aktueller_nutzer":
-          return row.kategorie === "Boote"
-            ? (getBoatValue(details, "aktueller_nutzer") || "")
-            : (getDetailValue(details, ["aktueller_nutzer"]) || "");
-        default:
-          return "";
+        case "name": return row.name || "";
+        case "standort": return row.standort || "";
+        case "kategorie": return row.kategorie || "";
+        case "bootsform": return row.kategorie === "Boote" ? (getBoatValue(details, "Bootsform") || "") : (getDetailValue(details, ["Bootsform", "bootsform"]) || "");
+        case "blattform": return getDetailValue(details, ["blattform", "Blattform"]) || "";
+        case "schaft": return getDetailValue(details, ["schafttyp", "Schafttyp", "schaft", "Schaft"]) || "";
+        case "gewicht": return row.kategorie === "Boote" ? (getBoatValue(details, "gewicht_kg") || "") : (getDetailValue(details, ["gewicht_kg", "gewicht"]) || "");
+        case "plaetze": return row.kategorie === "Boote" ? (Number(getBoatValue(details, "plaetze")) || 0) : (Number(getDetailValue(details, ["plaetze"])) || 0);
+        case "aktueller_nutzer": return row.kategorie === "Boote" ? (getBoatValue(details, "aktueller_nutzer") || "") : (getDetailValue(details, ["aktueller_nutzer"]) || "");
+        default: return "";
       }
     }
 
     function compareSortValues(a, b, direction) {
       const dir = direction === "desc" ? -1 : 1;
-
       const aNum = typeof a === "number" ? a : Number(String(a).replace(",", "."));
       const bNum = typeof b === "number" ? b : Number(String(b).replace(",", "."));
       const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && a !== "" && b !== "";
 
-      if (bothNumeric) {
-        return (aNum - bNum) * dir;
-      }
-
+      if (bothNumeric) return (aNum - bNum) * dir;
       return String(a).localeCompare(String(b), "de", { numeric: true, sensitivity: "base" }) * dir;
     }
 
@@ -1611,7 +1045,7 @@
         return;
       }
 
-      els.categoryAnchors.innerHTML = categories.map(category => {
+      els.categoryAnchors.innerHTML = categories.map((category) => {
         const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.Unbekannt;
         return `<a class="anchor-pill" href="#cat-${slugify(category)}" style="box-shadow: inset 0 0 0 1px ${color}55;">${escapeHtml(category)}</a>`;
       }).join("");
@@ -1671,9 +1105,9 @@
         return;
       }
 
-      const widths = activeHeadCells.map(cell => Math.max(60, Math.round(cell.getBoundingClientRect().width)));
+      const widths = activeHeadCells.map((cell) => Math.max(60, Math.round(cell.getBoundingClientRect().width)));
       const totalWidth = widths.reduce((sum, width) => sum + width, 0);
-      const colgroup = `<colgroup>${widths.map(width => `<col style="width:${width}px">`).join("")}</colgroup>`;
+      const colgroup = `<colgroup>${widths.map((width) => `<col style="width:${width}px">`).join("")}</colgroup>`;
 
       els.stickyHeadTable.style.width = `${Math.max(totalWidth, activeTableWrap.clientWidth)}px`;
       els.stickyHeadTable.innerHTML = `${colgroup}${activeHeadRow.outerHTML}`;
@@ -1709,8 +1143,8 @@
       }
 
       const sortedRows = sortRows(rows);
-
       const grouped = new Map();
+
       for (const row of sortedRows) {
         const key = row.kategorie || "Unbekannt";
         if (!grouped.has(key)) grouped.set(key, []);
@@ -1718,9 +1152,7 @@
       }
 
       const orderedCategories = [...grouped.keys()].sort((a, b) => {
-        if (currentSort.field === "kategorie") {
-          return compareSortValues(a, b, currentSort.direction);
-        }
+        if (currentSort.field === "kategorie") return compareSortValues(a, b, currentSort.direction);
         const ai = categorySortIndex(a);
         const bi = categorySortIndex(b);
         if (ai !== bi) return ai - bi;
@@ -1729,7 +1161,7 @@
 
       renderAnchors(orderedCategories);
 
-      els.categoryTables.innerHTML = orderedCategories.map(category => {
+      els.categoryTables.innerHTML = orderedCategories.map((category) => {
         const items = grouped.get(category) || [];
         const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.Unbekannt;
         const detailKeys = getDetailKeys(items, category);
@@ -1763,15 +1195,15 @@
                       <tr>
                         <th class="${getColumnClass("name", true)}">Name</th>
                         <th class="${getColumnClass("standort", true)}">Standort</th>
-                        ${detailKeys.map(key => `<th class="${getColumnClass(key)}">${escapeHtml(prettyColumnName(key))}</th>`).join("")}
+                        ${detailKeys.map((key) => `<th class="${getColumnClass(key)}">${escapeHtml(prettyColumnName(key))}</th>`).join("")}
                       </tr>
                     </thead>
                     <tbody>
-                      ${items.map(item => `
+                      ${items.map((item) => `
                         <tr>
                           <td class="${getColumnClass("name", true)}">${escapeHtml(item.name || "–")}</td>
                           <td class="${getColumnClass("standort", true)}">${escapeHtml(item.standort || "–")}</td>
-                          ${detailKeys.map(key => renderEditableCell(item, key, category)).join("")}
+                          ${detailKeys.map((key) => renderEditableCell(item, key, category)).join("")}
                         </tr>
                       `).join("")}
                     </tbody>
@@ -1788,9 +1220,9 @@
     }
 
     function updateKpis(rows) {
-      const categories = new Set(rows.map(r => r.kategorie || "Unbekannt"));
-      const boats = rows.filter(r => r.kategorie === "Boote");
-      const boatsWithDetails = boats.filter(r => Number.isFinite(Number(getBoatValue(r.details || {}, "plaetze"))) && Number(getBoatValue(r.details || {}, "plaetze")) > 0);
+      const categories = new Set(rows.map((r) => r.kategorie || "Unbekannt"));
+      const boats = rows.filter((r) => r.kategorie === "Boote");
+      const boatsWithDetails = boats.filter((r) => Number.isFinite(Number(getBoatValue(r.details || {}, "plaetze"))) && Number(getBoatValue(r.details || {}, "plaetze")) > 0);
 
       els.kpiMaterial.textContent = rows.length;
       els.kpiCategories.textContent = categories.size;
@@ -1800,9 +1232,7 @@
 
     function applyFilter() {
       const term = String(els.searchInput.value || "").trim().toLowerCase();
-      const filtered = !term
-        ? allRows
-        : allRows.filter(row => row.searchText.includes(term));
+      const filtered = !term ? allRows : allRows.filter((row) => row.searchText.includes(term));
 
       updateKpis(filtered);
       renderTables(filtered);
@@ -1814,7 +1244,8 @@
       setStatus(
         `Aktualisiert: ${new Date().toLocaleString("de-DE")}\n` +
         `Einträge sichtbar: ${filtered.length} von ${allRows.length}\n` +
-        `Sortierung: ${sortLabel}`
+        `Sortierung: ${sortLabel}\n` +
+        `Rolle: ${currentRole}`
       );
     }
 
@@ -1823,11 +1254,12 @@
       if (authError) throw authError;
 
       currentUser = authData?.user || null;
+      currentRole = "visitor";
+      canEditDetails = false;
 
       if (!currentUser) {
-        isAdmin = false;
         els.editModeBtn.disabled = true;
-        els.adminInfo.textContent = "Nicht eingeloggt";
+        els.adminInfo.textContent = "Nicht eingeloggt – Visitor-Modus";
         return;
       }
 
@@ -1837,21 +1269,20 @@
         .eq("id", currentUser.id)
         .maybeSingle();
 
-      if (profileError) {
-        console.warn("Profil konnte nicht geladen werden:", profileError);
-      }
+      if (profileError) console.warn("Profil konnte nicht geladen werden:", profileError);
 
-      const role = profile?.role || "";
-      isAdmin = String(role).toLowerCase() === "admin";
+      currentRole = normalizeRole(profile?.role);
+      canEditDetails = currentRole === "user" || currentRole === "admin";
+      els.editModeBtn.disabled = !canEditDetails;
 
-      els.editModeBtn.disabled = !isAdmin;
-      els.adminInfo.textContent = isAdmin
-        ? "Eingeloggt als Admin"
-        : "Eingeloggt, aber kein Admin";
-
-      if (isAdmin) {
+      if (currentRole === "admin") {
+        els.adminInfo.textContent = "Eingeloggt als Admin – Bearbeitungsmodus möglich";
         els.adminInfo.classList.add("admin-on");
+      } else if (currentRole === "user") {
+        els.adminInfo.textContent = "Eingeloggt als User – Bearbeitungsmodus möglich";
+        els.adminInfo.classList.remove("admin-on");
       } else {
+        els.adminInfo.textContent = "Eingeloggt als Visitor – nur Ansicht";
         els.adminInfo.classList.remove("admin-on");
       }
     }
@@ -1878,40 +1309,18 @@
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabaseClient
-        .from("material_details")
-        .upsert(payload, { onConflict: "material_id" });
-
+      const { error } = await supabaseClient.from("material_details").upsert(payload, { onConflict: "material_id" });
       if (error) throw error;
     }
 
-    async function writeHistory({ materialId, fieldKey, beforeValue, afterValue }) {
-      const historyPayload = {
-        material_id: materialId,
-        field_key: fieldKey,
-        old_value: beforeValue ?? null,
-        new_value: afterValue ?? null,
-        changed_by: currentUser.id,
-        changed_at: new Date().toISOString()
-      };
-
-      const { error } = await supabaseClient
-        .from("material_history")
-        .insert(historyPayload);
-
-      if (error) {
-        console.warn("History konnte nicht geschrieben werden. Prüfe das Schema von material_history.", error);
-      }
-    }
-
     async function saveEdit() {
-      if (!currentEditContext || !currentUser || !isAdmin) return;
+      if (!currentEditContext || !currentUser || !canEditDetails) return;
 
-      const { materialId, key, currentValue, category } = currentEditContext;
+      const { materialId, key, category } = currentEditContext;
       const rawInput = els.editValueInput.value;
       const parsedValue = parseEditorValue(rawInput);
 
-      const rowIndex = allRows.findIndex(r => r.id === materialId);
+      const rowIndex = allRows.findIndex((r) => r.id === materialId);
       if (rowIndex < 0) {
         setStatus("Material nicht gefunden.", "error");
         return;
@@ -1922,7 +1331,6 @@
 
       if (category === "Boote") {
         nextDetails[key] = parsedValue;
-
         if (key === "steuermann_verfuegbar") {
           delete nextDetails["steuermann_verfügbar"];
           delete nextDetails["steuermann verfügbar"];
@@ -1933,25 +1341,15 @@
           nextDetails.steuermann_verfuegbar = parsedValue;
         }
       } else if (category === "Skulls") {
-        if (key === "Blattform") {
-          nextDetails.blattform = parsedValue;
-        } else if (key === "Schafttyp") {
-          nextDetails.schafttyp = parsedValue;
-        } else if (key === "Gesamtlänge") {
-          nextDetails.gesamtlaenge_cm = parsedValue;
-        } else if (key === "Innenheben") {
-          nextDetails.innenhebel_cm = parsedValue;
-        } else if (key === "defekt") {
-          nextDetails.defekt = parsedValue;
-        } else {
-          nextDetails[key] = parsedValue;
-        }
+        if (key === "Blattform") nextDetails.blattform = parsedValue;
+        else if (key === "Schafttyp") nextDetails.schafttyp = parsedValue;
+        else if (key === "Gesamtlänge") nextDetails.gesamtlaenge_cm = parsedValue;
+        else if (key === "Innenheben") nextDetails.innenhebel_cm = parsedValue;
+        else nextDetails[key] = parsedValue;
       } else if (category === "Riemen") {
-        if (key === "Blattform") {
-          nextDetails.blattform = parsedValue;
-        } else if (key === "Schaft") {
-          nextDetails.schafttyp = parsedValue;
-        } else if (key === "Gesamtlänge" && parsedValue && typeof parsedValue === "object") {
+        if (key === "Blattform") nextDetails.blattform = parsedValue;
+        else if (key === "Schaft") nextDetails.schafttyp = parsedValue;
+        else if (key === "Gesamtlänge" && parsedValue && typeof parsedValue === "object") {
           nextDetails.backbord = nextDetails.backbord || {};
           nextDetails.steuerbord = nextDetails.steuerbord || {};
           nextDetails.backbord.gesamtlaenge_cm = parsedValue.backbord ?? "";
@@ -1965,8 +1363,6 @@
           nextDetails.unterschiedliche_seiten = parsedValue;
         } else if (key === "griff_verstellbar") {
           nextDetails.griff_verstellbar = parsedValue;
-        } else if (key === "defekt") {
-          nextDetails.defekt = parsedValue;
         } else {
           nextDetails[key] = parsedValue;
         }
@@ -1979,30 +1375,18 @@
         els.saveEditBtn.textContent = "Speichert...";
 
         await upsertMaterialDetails(materialId, nextDetails);
-        await writeHistory({
-          materialId,
-          fieldKey: key,
-          beforeValue: currentValue,
-          afterValue: parsedValue
-        });
 
-        const normalizedDetails = row.kategorie === "Boote"
-          ? normalizeBoatDetails(nextDetails)
-          : nextDetails;
-
+        const normalizedDetails = row.kategorie === "Boote" ? normalizeBoatDetails(nextDetails) : nextDetails;
         allRows[rowIndex] = {
           ...row,
           details: normalizedDetails,
-          searchText: buildSearchText({
-            ...row,
-            details: normalizedDetails
-          })
+          searchText: buildSearchText({ ...row, details: normalizedDetails })
         };
 
         applyFilter();
         closeEditModal();
         setStatus(
-          `Änderung gespeichert.\nMaterial: ${row.name}\nFeld: ${key}\nGeändert von: ${currentUser.email || currentUser.id}`,
+          `Änderung gespeichert.\nMaterial: ${row.name}\nFeld: ${key}\nGeändert von: ${currentUser.email || currentUser.id}\nHinweis: Die spätere Admin-Änderungsseite kann dafür separat ergänzt werden.`,
           "success"
         );
       } catch (err) {
@@ -2024,12 +1408,8 @@
         await ensureUserAndRole();
 
         const [materialRes, detailsRes] = await Promise.all([
-          supabaseClient
-            .from("material")
-            .select("id, name, kategorie, standort, created_at, bundle_id"),
-          supabaseClient
-            .from("material_details")
-            .select("material_id, values, updated_at, updated_by")
+          supabaseClient.from("material").select("id, name, kategorie, standort, created_at, bundle_id"),
+          supabaseClient.from("material_details").select("material_id, values, updated_at, updated_by")
         ]);
 
         if (materialRes.error) throw materialRes.error;
@@ -2038,15 +1418,11 @@
         const material = materialRes.data || [];
         const details = detailsRes.data || [];
 
-        const detailsByMaterialId = Object.fromEntries(
-          details.map(row => [row.material_id, row.values || {}])
-        );
+        const detailsByMaterialId = Object.fromEntries(details.map((row) => [row.material_id, row.values || {}]));
 
-        allRows = material.map(row => {
+        allRows = material.map((row) => {
           const rawDetails = detailsByMaterialId[row.id] || {};
-          const normalizedDetails = row.kategorie === "Boote"
-            ? normalizeBoatDetails(rawDetails)
-            : rawDetails;
+          const normalizedDetails = row.kategorie === "Boote" ? normalizeBoatDetails(rawDetails) : rawDetails;
 
           const mapped = {
             ...row,
@@ -2054,10 +1430,7 @@
             details: normalizedDetails
           };
 
-          return {
-            ...mapped,
-            searchText: buildSearchText(mapped)
-          };
+          return { ...mapped, searchText: buildSearchText(mapped) };
         }).sort((a, b) => {
           const ai = categorySortIndex(a.kategorie || "Unbekannt");
           const bi = categorySortIndex(b.kategorie || "Unbekannt");
@@ -2100,7 +1473,7 @@
     });
 
     els.editModeBtn.addEventListener("click", () => {
-      if (!isAdmin) return;
+      if (!canEditDetails) return;
       editMode = !editMode;
       els.editModeBtn.textContent = editMode ? "Bearbeitungsmodus aktiv" : "Bearbeitungsmodus";
       applyFilter();
@@ -2108,7 +1481,7 @@
 
     els.categoryTables.addEventListener("click", (event) => {
       const cell = event.target.closest(".editable-cell");
-      if (!cell || !editMode || !isAdmin) return;
+      if (!cell || !editMode || !canEditDetails) return;
 
       openEditModal({
         materialId: cell.dataset.materialId,
@@ -2120,15 +1493,12 @@
     });
 
     els.categoryTables.addEventListener("toggle", requestStickySync, true);
-
     els.closeEditModalBtn.addEventListener("click", closeEditModal);
     els.cancelEditBtn.addEventListener("click", closeEditModal);
     els.saveEditBtn.addEventListener("click", saveEdit);
 
     els.editModalBackdrop.addEventListener("click", (event) => {
-      if (event.target === els.editModalBackdrop) {
-        closeEditModal();
-      }
+      if (event.target === els.editModalBackdrop) closeEditModal();
     });
 
     window.addEventListener("scroll", requestStickySync, { passive: true });
