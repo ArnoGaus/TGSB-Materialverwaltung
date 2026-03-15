@@ -24,6 +24,13 @@
       --pink: #ff76c8;
       --shadow: 0 18px 40px rgba(0,0,0,0.28);
       --sticky-top: 10px;
+      --select-bg: #233756;
+      --select-bg-open: #1c2d49;
+      --select-text: #eef4ff;
+      --select-option-bg: #223552;
+      --select-option-text: #eef4ff;
+      --select-option-hover: #2e466b;
+      --select-option-selected: #3b5b8d;
     }
 
     * { box-sizing: border-box; }
@@ -115,6 +122,58 @@
     button:disabled {
       opacity: 0.55;
       cursor: not-allowed;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--muted);
+      opacity: 1;
+    }
+
+    /* Lesbare Selects in Darkmode */
+    select {
+      background-color: var(--select-bg);
+      color: var(--select-text);
+      border: 1px solid var(--border-strong);
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 42px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #dbe8ff 50%),
+        linear-gradient(135deg, #dbe8ff 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    select:hover,
+    select:focus {
+      background-color: var(--select-bg-open);
+      color: var(--select-text);
+      outline: none;
+      border-color: rgba(99,164,255,0.45);
+      box-shadow: 0 0 0 3px rgba(99,164,255,0.14);
+    }
+
+    select option {
+      background-color: var(--select-option-bg);
+      color: var(--select-option-text);
+    }
+
+    select option:checked,
+    select option[selected] {
+      background-color: var(--select-option-selected);
+      color: var(--select-option-text);
+    }
+
+    /* Für manche Browser/Windows-Systemthemes */
+    select,
+    select option,
+    select optgroup {
+      color-scheme: dark;
     }
 
     .status {
@@ -349,7 +408,7 @@
 
     table {
       width: 100%;
-      min-width: 1180px;
+      min-width: 1300px;
       border-collapse: collapse;
       font-size: 14px;
       table-layout: fixed;
@@ -360,7 +419,8 @@
       padding: 11px 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       vertical-align: top;
-      word-wrap: break-word;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     thead th {
@@ -378,6 +438,26 @@
     .table-wrap thead th:first-child { border-top-left-radius: 10px; }
     .table-wrap thead th:last-child { border-top-right-radius: 10px; }
 
+    th.col-name, td.col-name {
+      width: 180px;
+      min-width: 180px;
+    }
+
+    th.col-standort, td.col-standort {
+      width: 170px;
+      min-width: 170px;
+    }
+
+    th.col-schuhe, td.col-schuhe {
+      width: 360px;
+      min-width: 360px;
+    }
+
+    th.col-steuermann, td.col-steuermann {
+      width: 170px;
+      min-width: 170px;
+    }
+
     .muted { color: var(--muted); }
 
     .badge {
@@ -392,13 +472,24 @@
       background: rgba(255,255,255,0.05);
     }
 
-    .bool-yes { color: var(--green); font-weight: 700; }
-    .bool-no { color: var(--red); font-weight: 700; }
+    .bool-yes,
+    .bool-no,
+    .state-good,
+    .state-ok,
+    .state-bad,
+    .state-warn {
+      display: inline-block;
+      white-space: nowrap;
+      font-weight: 700;
+    }
 
-    .state-good { color: var(--green); font-weight: 700; }
-    .state-ok { color: var(--yellow); font-weight: 700; }
-    .state-bad { color: var(--red); font-weight: 700; }
-    .state-warn { color: var(--orange); font-weight: 700; }
+    .bool-yes { color: var(--green); }
+    .bool-no { color: var(--red); }
+
+    .state-good { color: var(--green); }
+    .state-ok { color: var(--yellow); }
+    .state-bad { color: var(--red); }
+    .state-warn { color: var(--orange); }
 
     .category-details {
       border-radius: 18px;
@@ -453,17 +544,25 @@
     }
 
     .shoes-list {
-      display: grid;
-      gap: 4px;
-      min-width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+      width: 100%;
     }
 
     .shoe-line {
-      line-height: 1.45;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: baseline;
+      line-height: 1.5;
+      white-space: normal;
     }
 
     .shoe-place {
       font-weight: 800;
+      white-space: nowrap;
     }
 
     .editable-cell {
@@ -578,7 +677,7 @@
 
     .multi-line-value {
       display: grid;
-      gap: 2px;
+      gap: 4px;
       line-height: 1.45;
       white-space: normal;
     }
@@ -628,6 +727,16 @@
       .sort-group select,
       .sort-group button {
         flex: 1 1 auto;
+      }
+
+      th.col-schuhe, td.col-schuhe {
+        width: 320px;
+        min-width: 320px;
+      }
+
+      th.col-steuermann, td.col-steuermann {
+        width: 150px;
+        min-width: 150px;
       }
     }
   </style>
@@ -884,8 +993,8 @@
 
       const aliasMap = {
         Bootsform: ["Bootsform", "bootsform", "boots_form"],
-        gewicht_kg: ["gewicht_kg", "gewicht", "gewichtKg", "gewicht_kg "],
-        huelle_vorhanden: ["huelle_vorhanden", "huelle_vorhanden ", "hülle_vorhanden", "huelle", "hülle"],
+        gewicht_kg: ["gewicht_kg", "gewicht", "gewichtKg"],
+        huelle_vorhanden: ["huelle_vorhanden", "hülle_vorhanden", "huelle", "hülle"],
         huelle_notiz: ["huelle_notiz", "hülle_notiz", "huellen_notiz", "hüllen_notiz"],
         aktueller_nutzer: ["aktueller_nutzer", "aktueller nutzer", "nutzer", "current_user"],
         defekt: ["defekt"],
@@ -976,7 +1085,11 @@
         const zustand = entry.zustand ?? "–";
 
         lines.push(
-          `<div class="shoe-line"><span class="shoe-place">${escapeHtml(platzLabel)}:</span> Größe: ${escapeHtml(groesse)}, Zustand: ${formatCondition(zustand)}</div>`
+          `<div class="shoe-line">
+            <span class="shoe-place">${escapeHtml(platzLabel)}:</span>
+            <span>Größe: ${escapeHtml(groesse)},</span>
+            <span>Zustand: ${formatCondition(zustand)}</span>
+          </div>`
         );
       };
 
@@ -1358,6 +1471,14 @@
       return map[key] || key;
     }
 
+    function getColumnClass(key, isBaseColumn = false) {
+      if (isBaseColumn && key === "name") return "col-name";
+      if (isBaseColumn && key === "standort") return "col-standort";
+      if (key === "schuhe") return "col-schuhe";
+      if (key === "steuermann_verfuegbar") return "col-steuermann";
+      return "";
+    }
+
     function getEditableRawValue(item, key, category) {
       const details = item.details || {};
 
@@ -1385,14 +1506,15 @@
     function renderEditableCell(item, key, category) {
       const rawValue = getEditableRawValue(item, key, category);
       const formattedValue = formatValue(rawValue, key, category, item);
+      const extraClass = getColumnClass(key);
 
       if (!editMode || !isAdmin) {
-        return `<td>${formattedValue}</td>`;
+        return `<td class="${extraClass}">${formattedValue}</td>`;
       }
 
       return `
         <td
-          class="editable-cell"
+          class="editable-cell ${extraClass}"
           data-material-id="${escapeHtml(item.id)}"
           data-name="${escapeHtml(item.name || "")}"
           data-category="${escapeHtml(category || "")}"
@@ -1639,16 +1761,16 @@
                   <table>
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Standort</th>
-                        ${detailKeys.map(key => `<th>${escapeHtml(prettyColumnName(key))}</th>`).join("")}
+                        <th class="${getColumnClass("name", true)}">Name</th>
+                        <th class="${getColumnClass("standort", true)}">Standort</th>
+                        ${detailKeys.map(key => `<th class="${getColumnClass(key)}">${escapeHtml(prettyColumnName(key))}</th>`).join("")}
                       </tr>
                     </thead>
                     <tbody>
                       ${items.map(item => `
                         <tr>
-                          <td>${escapeHtml(item.name || "–")}</td>
-                          <td>${escapeHtml(item.standort || "–")}</td>
+                          <td class="${getColumnClass("name", true)}">${escapeHtml(item.name || "–")}</td>
+                          <td class="${getColumnClass("standort", true)}">${escapeHtml(item.standort || "–")}</td>
                           ${detailKeys.map(key => renderEditableCell(item, key, category)).join("")}
                         </tr>
                       `).join("")}
@@ -1724,8 +1846,8 @@
 
       els.editModeBtn.disabled = !isAdmin;
       els.adminInfo.textContent = isAdmin
-        ? `Eingeloggt als Admin`
-        : `Eingeloggt, aber kein Admin`;
+        ? "Eingeloggt als Admin"
+        : "Eingeloggt, aber kein Admin";
 
       if (isAdmin) {
         els.adminInfo.classList.add("admin-on");
