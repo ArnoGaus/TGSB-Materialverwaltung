@@ -1187,13 +1187,21 @@ export default function AdminPanel({
               }}
             >
               <div style={{ width: 180, opacity: 0.9 }}>Verein</div>
-              <input
+              <select
                 style={{ flex: 1 }}
-                type="text"
                 placeholder="z.B. BonnerRG"
-                value={boatDetails?.Bootsform ?? ""}
-                onChange={(e) => setBoatField("Bootsform", e.target.value, "text")}
-              />
+                value={boatDetails?.Verein ?? ""}
+                onChange={(e) => setBoatField("Verein", e.target.value, "text")}
+              >
+              <option value="">-</option>
+              {detailsSchema.Boote
+                ?.find((f) => f.key === "Verein")
+                ?.options?.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
             </div>          
 
             <div

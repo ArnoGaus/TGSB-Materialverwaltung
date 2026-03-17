@@ -23,7 +23,7 @@ export const detailsSchema = {
     { key: "plaetze", label: "Plätze", type: "number", step: 1, min: 1 },
     { key: "Bootsform", label: "Bootsform", type: "text", placeholder: "z.B. X25" },  
     { key: "Baujahr", label: "Baujahr", type: "number", step: 1, min: 1800, max: new Date().getFullYear() },
-    { key: "Verein", label: "Verein", type: "text", placeholder: "z.B. BRG" },
+    { key: "Verein", label: "Verein", type: "select", options: ["", "BRG", "SRV", "Andere"] },
     { key: "gewicht_kg", label: "Gewicht", type: "text", placeholder: "z.B. 80-90", unit: "kg" },
     { key: "huelle_vorhanden", label: "Hülle vorhanden", type: "bool" },
     { key: "huelle_notiz", label: "Hülle Notiz", type: "text", placeholder: "z.B. passt zu ... / Zustand ..." },
