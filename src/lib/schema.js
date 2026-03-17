@@ -21,13 +21,16 @@ export const RIEMEN_PER_PAIR_KEYS = ["defekt", "unterschiedliche_seiten", "backb
 export const detailsSchema = {
   Boote: [
     { key: "plaetze", label: "Plätze", type: "number", step: 1, min: 1 },
-    { key: "Bootsform", label: "Bootsform", type: "text", placeholder: "z.B. X25" },
+    { key: "Bootsform", label: "Bootsform", type: "text", placeholder: "z.B. X25" },  
+    { key: "Baujahr", label: "Baujahr", type: "number", step: 1, min: 1800, max: new Date().getFullYear() },
+    { key: "Verein", label: "Verein", type: "text", placeholder: "z.B. BRG" },
     { key: "gewicht_kg", label: "Gewicht", type: "text", placeholder: "z.B. 80-90", unit: "kg" },
     { key: "huelle_vorhanden", label: "Hülle vorhanden", type: "bool" },
     { key: "huelle_notiz", label: "Hülle Notiz", type: "text", placeholder: "z.B. passt zu ... / Zustand ..." },
     { key: "steuermann_verfuegbar", label: "mit Steuerplatz", type: "bool" },
     { key: "aktueller_nutzer", label: "aktueller Nutzer", type: "text", placeholder: "z.B. Max Mustermann" },
     { key: "defekt", label: "Defekt", type: "bool" },
+
   ],
 
   Skulls: [

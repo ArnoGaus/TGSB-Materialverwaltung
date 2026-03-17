@@ -38,7 +38,7 @@ function getPermissions(role) {
     canEditDetails: normalized === "user" || normalized === "admin",
     canRenameMaterial: normalized === "admin",
     canDeleteMaterial: normalized === "admin",
-    canUseAdminPanel: normalized === "admin",
+    canUseAdminPanel: normalized === "user" || normalized === "admin",
     canViewHistory: normalized === "user" || normalized === "admin",
     canViewStatistics: true,
     canEditTable: normalized === "user" || normalized === "admin",
@@ -962,7 +962,7 @@ export default function App() {
                 className={`admin-toggle ${showAdmin ? "is-on" : ""}`}
                 onClick={() => setShowAdmin((s) => !s)}
               >
-                {showAdmin ? "Admin verlassen" : "Admin"}
+                {showAdmin ? "Bearbeitung verlassen" : "Material anlegen"}
               </button>
             )}
 

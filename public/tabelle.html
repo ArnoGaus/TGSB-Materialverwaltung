@@ -472,6 +472,8 @@
             <option value="schaft">Schaft</option>
             <option value="gewicht">Gewicht</option>
             <option value="plaetze">Sitzplätze</option>
+            <option value="Baujahr">Baujahr</option>
+            <option value="Verein">Verein</option>
             <option value="aktueller_nutzer">Aktueller Nutzer</option>
           </select>
           <select id="sortDirectionSelect">
@@ -640,6 +642,8 @@
         defekt: ["defekt"],
         schuhe: ["schuhe", "Schuhe"],
         plaetze: ["plaetze", "plätze", "sitze", "sitzplaetze", "sitzplätze"],
+        Baujahr: ["Baujahr", "baujahr"],
+        Verein: ["Verein", "verein"],
         steuermann_verfuegbar: [
           "steuermann_verfuegbar", "steuermann_verfügbar", "steuermann verfuegbar",
           "steuermann verfügbar", "steuermann", "cox", "cox_available", "cox_verfuegbar"
@@ -665,6 +669,8 @@
         defekt: ["defekt"],
         schuhe: ["schuhe"],
         plaetze: ["plaetze"],
+        Baujahr: ["Baujahr"],
+        Verein: ["Verein"],
         steuermann_verfuegbar: ["steuermann_verfuegbar"]
       };
       return getDetailValue(boatDetails, keyMap[key] || [key]);
@@ -826,6 +832,8 @@
         if (key === "defekt") return formatDefektValue(getBoatValue(details, "defekt"), category);
         if (key === "schuhe") return formatShoesValue(getBoatValue(details, "schuhe"));
         if (key === "plaetze") { const v = getBoatValue(details, "plaetze"); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "Baujahr") { const v = getBoatValue(details, "Baujahr"); return v === null ? "–" : escapeHtml(String(v)); }
+        if (key === "Verein") { const v = getBoatValue(details, "Verein"); return v === null ? "–" : escapeHtml(String(v)); }
         if (key === "steuermann_verfuegbar") {
           const v = getBoatValue(details, "steuermann_verfuegbar");
           if (v === null) return "–";
@@ -894,7 +902,7 @@
       let detailKeys = [...detailKeysSet];
 
       if (category === "Boote") {
-        const preferred = ["Bootsform", "gewicht_kg", "huelle_vorhanden", "huelle_notiz", "aktueller_nutzer", "defekt", "schuhe", "plaetze", "steuermann_verfuegbar"];
+        const preferred = ["Bootsform", "gewicht_kg", "Baujahr", "Verein", "huelle_vorhanden", "huelle_notiz", "aktueller_nutzer", "defekt", "schuhe", "plaetze", "steuermann_verfuegbar"];
         detailKeys = [...new Set([...detailKeys, ...preferred])];
         detailKeys.sort((a, b) => {
           const ai = preferred.indexOf(a);

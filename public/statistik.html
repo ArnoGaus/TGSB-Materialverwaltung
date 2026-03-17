@@ -421,6 +421,12 @@
       </section>
 
       <section class="card">
+        <div class="section-title">Boote nach Standort</div>
+        <div class="section-subtitle">Aktueller Bootsbestand je Standort im System.</div>
+        <div class="chart-wrap small"><canvas id="boatsByLocationChart"></canvas></div>
+      </section>
+
+      <section class="card">
         <div class="section-title">Bootsklassen gesamt</div>
         <div class="section-subtitle">Verteilung nach 1x, 2x, 4x und 8x auf Basis von <code>values.plaetze</code>.</div>
         <div class="chart-wrap small"><canvas id="boatClassChart"></canvas></div>
@@ -438,6 +444,20 @@
         <div class="section-title">Bootsklassen je Standort</div>
         <div class="section-subtitle">Wie sich Einer, Zweier, Vierer und Achter über die Standorte verteilen.</div>
         <div class="chart-wrap"><canvas id="classByLocationChart"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="section-title">Boote nach Baujahr</div>
+        <div class="section-subtitle">Verteilung der Boote nach hinterlegtem Baujahr.</div>
+        <div class="chart-wrap"><canvas id="boatYearChart"></canvas></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Bootsklassen nach Verein</div>
+        <div class="section-subtitle">Wie sich Einer, Zweier, Vierer und Achter auf die Vereine verteilen.</div>
+        <div class="chart-wrap"><canvas id="classByClubChart"></canvas></div>
       </section>
     </div>
 
@@ -513,7 +533,6 @@
   </div>
 
   <script type="module">
-    import { BOOT_CAPACITY_BY_STANDORT } from "/src/lib/schema.js";
 
     const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
     const SUPABASE_ANON_KEY =
@@ -524,6 +543,23 @@
         .trim()
         .replace(/\s+/g, " ")
         .replace(/Fuehlingen/i, "Fühlingen");
+    }
+
+    function getBoatDetailValue(values, key) {
+      if (!values || typeof values !== "object") return null;
+
+      const aliasMap = {
+        plaetze: ["plaetze", "plätze", "sitze", "sitzplaetze", "sitzplätze"],
+        Baujahr: ["Baujahr", "baujahr"],
+        Verein: ["Verein", "verein"]
+      };
+
+      const keys = aliasMap[key] || [key];
+      for (const candidate of keys) {
+        const value = values[candidate];
+        if (value !== undefined && value !== null && value !== "") return value;
+      }
+      return null;
     }
 
     function isUnlimitedCapacity(capacityConfig) {
@@ -537,6 +573,22 @@
     if (!window.supabase) {
       throw new Error("Supabase-Bibliothek wurde nicht geladen.");
     }
+
+    function getBootCapacity(standortName, seats) {
+      const key = normalizeStandortKey(standortName);
+      const capObj = BOOT_CAPACITY_BY_STANDORT?.[key];
+      if (!capObj) return undefined;
+      if (capObj === Infinity) return Infinity;
+      return capObj?.[Number(seats)];
+    }
+
+
+    const BOOT_CAPACITY_BY_STANDORT = {
+      BRG: { 1: 2, 2: 2, 4: 2, 8: 2 },
+      SRV: { 1: 25, 2: 11, 4: 4, 8: 1 },
+      Fühlingen: { 1: 10, 2: 6, 4: 5, 8: 2 },
+      Extern: Infinity,
+    };
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -689,7 +741,9 @@
         capacityRows,
         userRows,
         routeRows,
-        classRows
+        classRows,
+        yearRows,
+        classByClub
       } = data;
 
       const topCategory = categoryRows[0];
@@ -741,6 +795,24 @@
         insights.push(`Die häufigste erfasste Bootsklasse ist <strong>${escapeHtml(topClass.label)}</strong> mit <strong>${topClass.value}</strong> Booten.`);
       }
 
+      if (yearRows.length) {
+        const oldestYear = yearRows[0];
+        const newestYear = yearRows[yearRows.length - 1];
+        insights.push(`Die erfassten Baujahre der Boote reichen aktuell von <strong>${escapeHtml(oldestYear.label)}</strong> bis <strong>${escapeHtml(newestYear.label)}</strong>.`);
+      }
+
+      if (classByClub?.labels?.length) {
+        const clubTotals = classByClub.labels.map((club, index) => ({
+          club,
+          total: classByClub.datasets.reduce((sum, ds) => sum + Number(ds.data[index] || 0), 0)
+        })).sort((a, b) => b.total - a.total);
+
+        if (clubTotals.length && clubTotals[0].total > 0) {
+          insights.push(`Die meisten klassifizierten Boote sind aktuell dem Verein <strong>${escapeHtml(clubTotals[0].club)}</strong> zugeordnet, mit <strong>${clubTotals[0].total}</strong> Booten.`);
+        }
+      }
+
+
       insights.push(`Für <strong>${boatsWithSeats}</strong> von <strong>${boote.length}</strong> Booten liegt eine Klasseninformation über <code>plaetze</code> vor. Das entspricht <strong>${formatPercent(seatCoverage)}</strong> Datenabdeckung.`);
       insights.push(`Im Durchschnitt entfallen <strong>${avgMovesPerActiveUser.toFixed(1)}</strong> Standortwechsel auf jeden aktiven Nutzer im gewählten Zeitraum.`);
 
@@ -765,13 +837,32 @@
       const {
         categoryRows,
         standortRows,
+        boatsByLocationRows,
         classRows,
         capacityRows,
         classByLocation,
+        yearRows,
+        classByClub,
         dailySeries,
         userRows,
         routeRows
       } = data;
+
+      createChart("boatsByLocationChart", {
+        type: "bar",
+        data: {
+          labels: boatsByLocationRows.map(r => r.label),
+          datasets: [{
+            label: "Boote",
+            data: boatsByLocationRows.map(r => r.value),
+            backgroundColor: ["#48d597", "#63a4ff", "#ffd166", "#9d7bff", "#ff7b7b"]
+          }]
+        },
+        options: commonChartOptions({
+          indexAxis: "y",
+          plugins: { legend: { display: false } }
+        })
+      });
 
       createChart("categoryChart", {
         type: "doughnut",
@@ -875,6 +966,47 @@
             y: { stacked: true, ticks: { color: "#9db2d1" }, grid: { color: "rgba(255,255,255,0.06)" } }
           },
           plugins: { legend: { labels: { color: "#eef4ff" } } }
+        })
+      });
+
+      createChart("boatYearChart", {
+        type: "bar",
+        data: {
+          labels: yearRows.map(r => r.label),
+          datasets: [{
+            label: "Boote",
+            data: yearRows.map(r => r.value),
+            backgroundColor: "#56e0ff"
+          }]
+        },
+        options: commonChartOptions({
+          plugins: { legend: { display: false } }
+        })
+      });
+
+      createChart("classByClubChart", {
+        type: "bar",
+        data: {
+          labels: classByClub.labels,
+          datasets: classByClub.datasets
+        },
+        options: commonChartOptions({
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+              ticks: { color: "#9db2d1" },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            },
+            y: {
+              stacked: true,
+              ticks: { color: "#9db2d1" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: "#eef4ff" } }
+          }
         })
       });
 
@@ -1002,6 +1134,34 @@
       return { labels: locations, datasets };
     }
 
+    function buildClassByClubDataset(boatsWithSeatInfo) {
+      const clubs = [...new Set(
+        boatsWithSeatInfo
+          .map(b => String(b.verein || "Unbekannt").trim() || "Unbekannt")
+      )].sort((a, b) => a.localeCompare(b, "de"));
+
+      const seatClasses = [1, 2, 4, 8];
+
+      const colorMap = {
+        1: "#63a4ff",
+        2: "#48d597",
+        4: "#ffd166",
+        8: "#ff7b7b"
+      };
+
+      const datasets = seatClasses.map(seats => ({
+        label: `${seats}er`,
+        data: clubs.map(club =>
+          boatsWithSeatInfo.filter(
+            b => String(b.verein || "Unbekannt").trim() === club && Number(b.seats) === seats
+          ).length
+        ),
+        backgroundColor: colorMap[seats]
+      }));
+
+      return { labels: clubs, datasets };
+    }
+
     async function loadStats() {
       try {
         setStatus("Lade Statistik...");
@@ -1057,17 +1217,32 @@
         );
 
         const boote = material.filter(m => m.kategorie === "Boote");
-        const boatsWithSeatInfo = boote
-          .map(boat => {
-            const values = detailsByMaterialId?.[boat.id] || {};
-            const seats = Number(values.plaetze);
-            return { ...boat, seats };
-          })
-          .filter(boat => Number.isFinite(boat.seats) && boat.seats > 0);
+
+        const enrichedBoats = boote.map(boat => {
+          const values = detailsByMaterialId?.[boat.id] || {};
+          const seats = Number(getBoatDetailValue(values, "plaetze"));
+          const baujahrRaw = getBoatDetailValue(values, "Baujahr");
+          const vereinRaw = getBoatDetailValue(values, "Verein");
+
+          const baujahr = Number(baujahrRaw);
+          const verein = String(vereinRaw || "Unbekannt").trim() || "Unbekannt";
+
+          return {
+            ...boat,
+            seats,
+            baujahr: Number.isFinite(baujahr) && baujahr > 0 ? baujahr : null,
+            verein
+          };
+        });
+
+        const boatsWithSeatInfo = enrichedBoats.filter(
+          boat => Number.isFinite(boat.seats) && boat.seats > 0
+        );
 
         const categoryRows = countBy(material, m => m.kategorie || "Unbekannt");
         const standortRows = countBy(material, m => normalizeStandortKey(m.standort || "Unbekannt"));
         const userRows = historyRes.error ? [] : countBy(history, h => h.geändert_von || "Unbekannt");
+        const boatsByLocationRows = countBy(boote, b => normalizeStandortKey(b.standort || "Unbekannt"));
 
         const routeMap = new Map();
         for (const h of history) {
@@ -1084,6 +1259,18 @@
           classMap.set(key, (classMap.get(key) || 0) + 1);
         }
         const classRows = sortDescRows(classMap);
+
+        const yearMap = new Map();
+          for (const boat of enrichedBoats) {
+            if (!boat.baujahr) continue;
+            const key = String(boat.baujahr);
+            yearMap.set(key, (yearMap.get(key) || 0) + 1);
+          }
+          const yearRows = [...yearMap.entries()]
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => Number(a.label) - Number(b.label));
+
+          const classByClub = buildClassByClubDataset(boatsWithSeatInfo);
 
         const capacityRows = Object.keys(BOOT_CAPACITY_BY_STANDORT).map((standort) => {
           const boatsAtLocation = boote.filter(
@@ -1133,15 +1320,20 @@
           capacityRows,
           userRows,
           routeRows,
-          classRows
+          classRows,
+          yearRows,
+          classByClub
         });
 
         renderCharts({
           categoryRows,
           standortRows,
+          boatsByLocationRows,
           classRows,
           capacityRows,
           classByLocation,
+          yearRows,
+          classByClub,
           dailySeries,
           userRows,
           routeRows
@@ -1151,6 +1343,8 @@
         debugLines.push(`Boote mit plaetze: ${boatsWithSeatInfo.length}`);
         debugLines.push(`Routen: ${routeRows.length}`);
         debugLines.push(`Aktive Nutzer: ${distinctUsers.size}`);
+        debugLines.push(`Boote mit Baujahr: ${yearRows.reduce((sum, r) => sum + r.value, 0)}`);
+        debugLines.push(`Vereine mit klassifizierten Booten: ${classByClub.labels.length}`);
 
         if (detailsRes.error || historyRes.error) {
           setStatus("Teilweise geladen\n\n" + debugLines.join("\n"), true);

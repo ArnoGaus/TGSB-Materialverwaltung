@@ -38,6 +38,8 @@ export default function AdminPanel({
   const [createRiemenAusleger, setCreateRiemenAusleger] = useState(false);
   const [auslegerSkullPerSeat, setAuslegerSkullPerSeat] = useState([]);
   const [auslegerRiemenPerSeat, setAuslegerRiemenPerSeat] = useState([]);
+  const [boatBaujahr, setBoatBaujahr] = useState("");
+  const [boatVerein, setBoatVerein] = useState("");
 
   // Hülle
   const [hasHuelle, setHasHuelle] = useState(true);
@@ -492,7 +494,7 @@ export default function AdminPanel({
 
   return (
     <div className="card">
-      <h3>Admin</h3>
+      <h3>Material anlegen</h3>
 
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1157,6 +1159,42 @@ export default function AdminPanel({
                 onChange={(e) => setBoatField("Bootsform", e.target.value, "text")}
               />
             </div>
+            
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ width: 180, opacity: 0.9 }}>Baujahr</div>
+              <input
+                style={{ flex: 1 }}
+                type="number"
+                placeholder="z.B. 2020"
+                value={boatDetails?.Baujahr ?? ""}
+                onChange={(e) => setBoatField("Baujahr", e.target.value, "number")}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ width: 180, opacity: 0.9 }}>Verein</div>
+              <input
+                style={{ flex: 1 }}
+                type="text"
+                placeholder="z.B. BonnerRG"
+                value={boatDetails?.Bootsform ?? ""}
+                onChange={(e) => setBoatField("Bootsform", e.target.value, "text")}
+              />
+            </div>          
 
             <div
               style={{
