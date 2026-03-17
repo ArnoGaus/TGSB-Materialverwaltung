@@ -84,6 +84,20 @@ async function getCurrentUserId() {
   return data?.user?.id ?? null;
 }
 
+function stringifyHistoryValue(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+async function insertHistoryRows(rows) {
+  if (!rows || rows.length === 0) return;
+  const { error } = await supabase.from("material_history").insert(rows);
+  if (error) {
+    console.error("History insert Fehler:", error);
+  }
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [material, setMaterial] = useState([]);
@@ -199,7 +213,18 @@ export default function App() {
 
       const { data: hist, error: histError } = await supabase
         .from("material_history")
-        .select("id, material_id, alter_standort, neuer_standort, geändert_am, geändert_von")
+        .select(`
+          id,
+          material_id,
+          alter_standort,
+          neuer_standort,
+          geändert_am,
+          geändert_von,
+          field_key,
+          old_value,
+          new_value,
+          action_type
+        `)
         .eq("material_id", materialId)
         .order("geändert_am", { ascending: false });
 
@@ -218,7 +243,11 @@ export default function App() {
       let profileMap = {};
 
       if (userIds.length > 0) {
-        const { data: profs, error: profError } = await supabase.from("profiles").select("id, name").in("id", userIds);
+        const { data: profs, error: profError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", userIds);
+
         if (profError) {
           console.error("Profiles Fehler:", profError);
         } else {
@@ -228,7 +257,30 @@ export default function App() {
 
       const formatted = hist.map((h) => {
         const userName = profileMap[h.geändert_von] || "Unbekannt";
-        return `${new Date(h.geändert_am).toLocaleString("de-DE")} – ${userName}: ${h.alter_standort} → ${h.neuer_standort}`;
+        const ts = new Date(h.geändert_am).toLocaleString("de-DE");
+        const type = String(h.action_type || "standort").toLowerCase();
+
+        if (type === "standort") {
+          return `${ts} – ${userName}: Standort ${h.alter_standort || "–"} → ${h.neuer_standort || "–"}`;
+        }
+
+        if (type === "detail") {
+          return `${ts} – ${userName}: Detail "${h.field_key || "unbekannt"}" geändert: ${h.old_value || "–"} → ${h.new_value || "–"}`;
+        }
+
+        if (type === "name") {
+          return `${ts} – ${userName}: Name geändert: ${h.old_value || "–"} → ${h.new_value || "–"}`;
+        }
+
+        if (type === "create") {
+          return `${ts} – ${userName}: Material angelegt: ${h.new_value || "–"}`;
+        }
+
+        if (type === "delete") {
+          return `${ts} – ${userName}: Material gelöscht: ${h.old_value || "–"}`;
+        }
+
+        return `${ts} – ${userName}: ${type} – ${h.old_value || "–"} → ${h.new_value || "–"}`;
       });
 
       setHistory((prev) => ({ ...prev, [materialId]: formatted }));
@@ -241,38 +293,98 @@ export default function App() {
       if (!permissions.canEditDetails) return false;
 
       const userId = await getCurrentUserId();
-      const payload = { material_id: materialId, values: newValues, updated_by: userId };
+      const oldValues = detailsByMaterialId?.[materialId] || {};
 
-      const { error } = await supabase.from("material_details").upsert(payload, { onConflict: "material_id" });
+      const payload = {
+        material_id: materialId,
+        values: newValues,
+        updated_by: userId,
+      };
+
+      const { error } = await supabase
+        .from("material_details")
+        .upsert(payload, { onConflict: "material_id" });
+
       if (error) {
         console.error("Details speichern Fehler:", error);
         alert("Speichern fehlgeschlagen: " + error.message);
         return false;
       }
 
+      const changedKeys = [...new Set([
+        ...Object.keys(oldValues || {}),
+        ...Object.keys(newValues || {}),
+      ])];
+
+      const historyRows = changedKeys
+        .filter((key) => {
+          const oldVal = stringifyHistoryValue(oldValues?.[key]);
+          const newVal = stringifyHistoryValue(newValues?.[key]);
+          return oldVal !== newVal;
+        })
+        .map((key) => ({
+          material_id: materialId,
+          alter_standort: null,
+          neuer_standort: null,
+          geändert_von: userId,
+          geändert_am: new Date().toISOString(),
+          field_key: key,
+          old_value: stringifyHistoryValue(oldValues?.[key]),
+          new_value: stringifyHistoryValue(newValues?.[key]),
+          action_type: "detail",
+        }));
+
+      await insertHistoryRows(historyRows);
+
       setDetailsByMaterialId((prev) => ({ ...prev, [materialId]: newValues }));
       return true;
     },
-    [permissions.canEditDetails]
+    [detailsByMaterialId, permissions.canEditDetails]
   );
 
   const saveItemName = useCallback(
     async (materialId, newName) => {
       if (!permissions.canRenameMaterial) return false;
 
+      const userId = await getCurrentUserId();
+      const item = material.find((m) => m.id === materialId);
+      const oldName = item?.name || "";
       const name = String(newName || "").trim();
-      if (!name) return false;
 
-      const { error } = await supabase.from("material").update({ name }).eq("id", materialId);
+      if (!name) return false;
+      if (oldName === name) return true;
+
+      const { error } = await supabase
+        .from("material")
+        .update({ name })
+        .eq("id", materialId);
+
       if (error) {
         alert("Name speichern fehlgeschlagen: " + error.message);
         return false;
       }
 
-      setMaterial((prev) => prev.map((m) => (m.id === materialId ? { ...m, name } : m)));
+      await insertHistoryRows([
+        {
+          material_id: materialId,
+          alter_standort: null,
+          neuer_standort: null,
+          geändert_von: userId,
+          geändert_am: new Date().toISOString(),
+          field_key: "name",
+          old_value: oldName,
+          new_value: name,
+          action_type: "name",
+        },
+      ]);
+
+      setMaterial((prev) =>
+        prev.map((m) => (m.id === materialId ? { ...m, name } : m))
+      );
+
       return true;
     },
-    [permissions.canRenameMaterial]
+    [material, permissions.canRenameMaterial]
   );
 
   const renameBundleBaseName = useCallback(
@@ -438,8 +550,12 @@ export default function App() {
         neuer_standort: standort,
         geändert_von: userId,
         geändert_am: new Date().toISOString(),
+        field_key: "created",
+        old_value: "",
+        new_value: r.name || "",
+        action_type: "create",
       }));
-      await supabase.from("material_history").insert(historyRows);
+      await insertHistoryRows(historyRows);
 
       setMaterial((prev) => {
         const next = [...prev, ...(inserted || [])];
@@ -497,8 +613,12 @@ export default function App() {
         neuer_standort: standort,
         geändert_von: userId,
         geändert_am: new Date().toISOString(),
+        field_key: "created",
+        old_value: "",
+        new_value: r.name || "",
+        action_type: "create",
       }));
-      await supabase.from("material_history").insert(historyRows);
+      await insertHistoryRows(historyRows);
 
       setMaterial((prev) => {
         const next = [...prev, ...(inserted || [])];
@@ -581,8 +701,12 @@ export default function App() {
         neuer_standort: standort,
         geändert_von: userId,
         geändert_am: new Date().toISOString(),
+        field_key: "created",
+        old_value: "",
+        new_value: r.name || "",
+        action_type: "create",
       }));
-      await supabase.from("material_history").insert(historyRows);
+      await insertHistoryRows(historyRows);
 
       setMaterial((prev) => {
         const next = [...prev, ...(inserted || [])];
@@ -901,7 +1025,27 @@ export default function App() {
   const deleteMaterialConfirmed = useCallback(async () => {
     if (!deleteItem || !permissions.canDeleteMaterial) return;
 
-    const { error } = await supabase.from("material").delete().eq("id", deleteItem.id);
+    const userId = await getCurrentUserId();
+
+    await insertHistoryRows([
+      {
+        material_id: deleteItem.id,
+        alter_standort: deleteItem.standort || null,
+        neuer_standort: null,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+        field_key: "deleted",
+        old_value: deleteItem.name || "",
+        new_value: "",
+        action_type: "delete",
+      },
+    ]);
+
+    const { error } = await supabase
+      .from("material")
+      .delete()
+      .eq("id", deleteItem.id);
+
     if (error) {
       alert("Löschen fehlgeschlagen: " + error.message);
       return;
@@ -913,6 +1057,7 @@ export default function App() {
       delete copy[deleteItem.id];
       return copy;
     });
+
     setDeleteItem(null);
   }, [deleteItem, permissions.canDeleteMaterial]);
 

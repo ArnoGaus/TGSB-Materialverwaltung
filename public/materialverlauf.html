@@ -5,20 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Materialverlauf</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     :root {
       --bg: #0a1220;
+      --bg-soft: #0f1a2d;
       --card: #13203a;
       --card-2: #182946;
       --border: rgba(255,255,255,0.08);
-      --border-strong: rgba(255,255,255,0.14);
+      --border-strong: rgba(255,255,255,0.12);
       --text: #eef4ff;
       --muted: #9db2d1;
-      --green: #48d597;
       --blue: #63a4ff;
+      --green: #48d597;
+      --yellow: #ffd166;
+      --orange: #ff9f5a;
       --red: #ff7b7b;
+      --violet: #9d7bff;
       --shadow: 0 18px 40px rgba(0,0,0,0.28);
+      --select-bg: #233756;
+      --select-bg-open: #1c2d49;
+      --select-text: #eef4ff;
     }
 
     * { box-sizing: border-box; }
@@ -28,27 +34,30 @@
       color: var(--text);
       font-family: Inter, system-ui, Arial, sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(99,164,255,0.14), transparent 24%),
+        radial-gradient(circle at top left, rgba(99,164,255,0.16), transparent 24%),
         radial-gradient(circle at top right, rgba(72,213,151,0.10), transparent 22%),
         var(--bg);
     }
 
     .page {
-      max-width: 1500px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 24px;
       display: grid;
       gap: 18px;
     }
 
-    .card {
+    .hero, .card {
       background: linear-gradient(180deg, var(--card), var(--card-2));
       border: 1px solid var(--border);
       border-radius: 24px;
       box-shadow: var(--shadow);
-      padding: 20px;
+    }
+
+    .hero {
+      padding: 24px;
       display: grid;
-      gap: 14px;
+      gap: 16px;
     }
 
     .hero-top {
@@ -59,13 +68,12 @@
       flex-wrap: wrap;
     }
 
-    h1, h2 {
-      margin: 0;
-    }
+    h1, h2, h3 { margin: 0; }
 
     h1 {
       font-size: 34px;
       font-weight: 900;
+      letter-spacing: 0.2px;
     }
 
     .subtitle {
@@ -73,7 +81,7 @@
       color: var(--muted);
       font-size: 15px;
       line-height: 1.45;
-      max-width: 900px;
+      max-width: 980px;
     }
 
     .toolbar {
@@ -83,8 +91,8 @@
       align-items: center;
     }
 
-    button, input {
-      border: 1px solid var(--border-strong);
+    button, select, input {
+      border: 1px solid var(--border);
       background: rgba(255,255,255,0.06);
       color: var(--text);
       border-radius: 12px;
@@ -101,9 +109,39 @@
       background: rgba(255,255,255,0.10);
     }
 
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
     input::placeholder {
       color: var(--muted);
       opacity: 1;
+    }
+
+    select {
+      background-color: var(--select-bg);
+      color: var(--select-text);
+      border: 1px solid var(--border-strong);
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 42px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #dbe8ff 50%),
+        linear-gradient(135deg, #dbe8ff 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    select:hover, select:focus {
+      background-color: var(--select-bg-open);
+      outline: none;
+      border-color: rgba(99,164,255,0.45);
+      box-shadow: 0 0 0 3px rgba(99,164,255,0.14);
     }
 
     .status {
@@ -129,20 +167,37 @@
       border-color: rgba(72,213,151,0.28);
     }
 
-    .grid-3 {
+    .grid-4 {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
     }
 
     .kpi {
       padding: 18px;
+      min-width: 0;
       display: grid;
       gap: 8px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
     }
+
+    .kpi::after {
+      content: "";
+      position: absolute;
+      right: -22px;
+      bottom: -22px;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      opacity: 0.18;
+      filter: blur(6px);
+    }
+
+    .kpi.blue::after { background: var(--blue); }
+    .kpi.green::after { background: var(--green); }
+    .kpi.orange::after { background: var(--orange); }
+    .kpi.violet::after { background: var(--violet); }
 
     .kpi-label {
       color: var(--muted);
@@ -150,7 +205,7 @@
     }
 
     .kpi-value {
-      font-size: 30px;
+      font-size: 32px;
       font-weight: 900;
       line-height: 1;
     }
@@ -161,22 +216,39 @@
       line-height: 1.45;
     }
 
+    .card {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 850;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .table-wrap {
       overflow-x: auto;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
     }
 
     table {
       width: 100%;
-      min-width: 1100px;
+      min-width: 1200px;
       border-collapse: collapse;
+      font-size: 14px;
       table-layout: fixed;
     }
 
     th, td {
       text-align: left;
-      padding: 12px 10px;
+      padding: 11px 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       vertical-align: top;
       overflow-wrap: break-word;
@@ -190,14 +262,6 @@
       background: rgba(10,18,32,0.78);
     }
 
-    tbody tr:hover {
-      background: rgba(255,255,255,0.04);
-    }
-
-    .muted {
-      color: var(--muted);
-    }
-
     .badge {
       display: inline-flex;
       align-items: center;
@@ -208,34 +272,32 @@
       white-space: nowrap;
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.05);
-      color: #d9ffef;
     }
 
-    .change-box {
-      display: grid;
-      gap: 6px;
-      line-height: 1.45;
-    }
+    .badge.blue { color: #cfe2ff; border-color: rgba(99,164,255,0.35); background: rgba(99,164,255,0.14); }
+    .badge.green { color: #d9ffef; border-color: rgba(72,213,151,0.35); background: rgba(72,213,151,0.14); }
+    .badge.orange { color: #ffe8d2; border-color: rgba(255,159,90,0.35); background: rgba(255,159,90,0.14); }
+    .badge.red { color: #ffd8d8; border-color: rgba(255,123,123,0.35); background: rgba(255,123,123,0.14); }
+    .badge.violet { color: #eadfff; border-color: rgba(157,123,255,0.35); background: rgba(157,123,255,0.14); }
 
-    .old-value {
-      color: #ffd5d5;
-      font-weight: 700;
-    }
-
-    .new-value {
-      color: #d9ffef;
-      font-weight: 700;
-    }
-
-    .footer-note {
-      color: var(--muted);
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
-      text-align: center;
-      padding-bottom: 8px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
-    @media (max-width: 900px) {
-      .grid-3 {
+    .muted { color: var(--muted); }
+
+    @media (max-width: 1100px) {
+      .grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .grid-4 {
         grid-template-columns: 1fr;
       }
 
@@ -243,109 +305,129 @@
         padding: 14px;
       }
 
-      .card {
+      .hero, .card {
         padding: 14px;
       }
 
       h1 {
         font-size: 28px;
       }
+
+      .kpi-value {
+        font-size: 26px;
+      }
+
+      table {
+        min-width: 1000px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <section class="card">
+    <section class="hero">
       <div class="hero-top">
         <div>
           <h1>Materialverlauf</h1>
           <div class="subtitle">
-            Tabellarische Übersicht aller Standortänderungen mit Materialname, Datum, Uhrzeit, Benutzer und Änderung.
-            Sichtbar nur für Admins.
+            Diese Seite zeigt alle Änderungen am Material: Standortwechsel, Detailänderungen,
+            Umbenennungen, Anlegen, Löschen und Änderungen in der digitalen Bootshalle.
+            Nur für Admins sichtbar.
           </div>
         </div>
 
         <div class="toolbar">
-          <input id="searchInput" type="text" placeholder="Suche nach Material, Benutzer, Standort..." />
+          <input id="searchInput" type="text" placeholder="Suche nach Material, Benutzer, Feld, Wert..." />
+          <select id="actionFilter">
+            <option value="alle">Alle Aktionen</option>
+            <option value="standort">Standort</option>
+            <option value="detail">Details</option>
+            <option value="name">Name</option>
+            <option value="create">Angelegt</option>
+            <option value="delete">Gelöscht</option>
+            <option value="bootshalle">Digitale Bootshalle</option>
+          </select>
           <button id="reloadBtn">Neu laden</button>
         </div>
       </div>
 
-      <div id="status" class="status">Lade Verlauf...</div>
+      <div id="status" class="status">Lade Materialverlauf...</div>
 
-      <div class="grid-3">
-        <div class="kpi">
-          <div class="kpi-label">Einträge gesamt</div>
+      <div class="grid-4">
+        <div class="card kpi blue">
+          <div class="kpi-label">Gesamt Einträge</div>
           <div class="kpi-value" id="kpiTotal">–</div>
-          <div class="kpi-sub">Alle geladenen Verlaufseinträge</div>
+          <div class="kpi-sub">Alle gefundenen Verlaufseinträge</div>
         </div>
 
-        <div class="kpi">
-          <div class="kpi-label">Sichtbar</div>
-          <div class="kpi-value" id="kpiVisible">–</div>
-          <div class="kpi-sub">Nach aktueller Suche</div>
+        <div class="card kpi green">
+          <div class="kpi-label">Standortänderungen</div>
+          <div class="kpi-value" id="kpiStandort">–</div>
+          <div class="kpi-sub">Einträge mit Standortwechsel</div>
         </div>
 
-        <div class="kpi">
-          <div class="kpi-label">Letzte Aktualisierung</div>
-          <div class="kpi-value" id="kpiUpdated" style="font-size:18px;">–</div>
-          <div class="kpi-sub">Zeitpunkt der letzten Ladung</div>
+        <div class="card kpi orange">
+          <div class="kpi-label">Detailänderungen</div>
+          <div class="kpi-value" id="kpiDetails">–</div>
+          <div class="kpi-sub">Geänderte Detailfelder</div>
+        </div>
+
+        <div class="card kpi violet">
+          <div class="kpi-label">Bootshalle</div>
+          <div class="kpi-value" id="kpiBootshalle">–</div>
+          <div class="kpi-sub">Änderungen in digitaler Bootshalle</div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <h2>Änderungen</h2>
+      <div class="section-title">Verlauf</div>
+      <div class="section-subtitle">Neueste Einträge stehen oben.</div>
 
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th style="width: 230px;">Material</th>
-              <th style="width: 190px;">Datum / Zeit</th>
-              <th style="width: 180px;">Benutzer</th>
-              <th style="width: 120px;">Typ</th>
-              <th>Änderung</th>
+              <th style="width: 180px;">Datum / Zeit</th>
+              <th style="width: 180px;">Material</th>
+              <th style="width: 140px;">Kategorie</th>
+              <th style="width: 150px;">Benutzer</th>
+              <th style="width: 150px;">Aktion</th>
+              <th style="width: 160px;">Feld</th>
+              <th>Vorher</th>
+              <th>Nachher</th>
             </tr>
           </thead>
-          <tbody id="historyBody">
+          <tbody id="historyTableBody">
             <tr>
-              <td colspan="5" class="muted">Lade Daten...</td>
+              <td colspan="8" class="muted">Lade Daten...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
-
-    <div class="footer-note">
-      Datenquelle: <code>material_history</code>, <code>material</code>, <code>profiles</code>
-    </div>
   </div>
 
   <script>
     const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
-    const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
-
-    if (!window.supabase) {
-      throw new Error("Supabase-Bibliothek wurde nicht geladen.");
-    }
-
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const els = {
       status: document.getElementById("status"),
-      reloadBtn: document.getElementById("reloadBtn"),
       searchInput: document.getElementById("searchInput"),
-      historyBody: document.getElementById("historyBody"),
+      actionFilter: document.getElementById("actionFilter"),
+      reloadBtn: document.getElementById("reloadBtn"),
+      historyTableBody: document.getElementById("historyTableBody"),
       kpiTotal: document.getElementById("kpiTotal"),
-      kpiVisible: document.getElementById("kpiVisible"),
-      kpiUpdated: document.getElementById("kpiUpdated")
+      kpiStandort: document.getElementById("kpiStandort"),
+      kpiDetails: document.getElementById("kpiDetails"),
+      kpiBootshalle: document.getElementById("kpiBootshalle")
     };
 
     let allRows = [];
     let currentUser = null;
-    let currentRole = null;
 
     function setStatus(message, type = "default") {
       els.status.className = "status";
@@ -363,165 +445,309 @@
         .replaceAll("'", "&#039;");
     }
 
-    function formatDateTime(value) {
-      if (!value) return "–";
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return escapeHtml(String(value));
-      return d.toLocaleString("de-DE");
+    function normalizeRole(rawRole) {
+      const role = String(rawRole || "").trim().toLowerCase();
+      if (role === "admin") return "admin";
+      if (role === "user") return "user";
+      return "visitor";
     }
 
-    async function ensureAdmin() {
+    function tryParseJson(value) {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      if (!trimmed) return value;
+      if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return value;
+      }
+    }
+
+    function formatValue(value) {
+      if (value === null || value === undefined || value === "") {
+        return '<span class="muted">–</span>';
+      }
+
+      const parsed = tryParseJson(value);
+
+      if (typeof parsed === "object" && parsed !== null) {
+        return `<div class="mono">${escapeHtml(JSON.stringify(parsed, null, 2))}</div>`;
+      }
+
+      return escapeHtml(String(value));
+    }
+
+    function badgeForAction(type) {
+      const value = String(type || "").toLowerCase();
+
+      if (value === "detail") return '<span class="badge blue">Detail</span>';
+      if (value === "name") return '<span class="badge violet">Name</span>';
+      if (value === "create") return '<span class="badge green">Angelegt</span>';
+      if (value === "delete") return '<span class="badge red">Gelöscht</span>';
+      if (value === "bootshalle_assign") return '<span class="badge orange">Bootshalle: Einlagern</span>';
+      if (value === "bootshalle_move") return '<span class="badge orange">Bootshalle: Verschieben</span>';
+      if (value === "bootshalle_remove") return '<span class="badge orange">Bootshalle: Entfernen</span>';
+      if (value === "bootshalle_comment") return '<span class="badge orange">Bootshalle: Kommentar</span>';
+
+      return '<span class="badge">Standort</span>';
+    }
+
+    function prettyFieldName(fieldKey, actionType) {
+      const key = String(fieldKey || "");
+      const action = String(actionType || "").toLowerCase();
+
+      if (!key && action === "standort") return "Standort";
+      if (key === "name") return "Name";
+      if (key === "created") return "Material";
+      if (key === "deleted") return "Material";
+      if (key === "bootshalle_slot") return "Bootshallenplatz";
+      if (key === "bootshalle_kommentar") return "Bootshallen-Kommentar";
+
+      const map = {
+        Bootsform: "Bootsform",
+        gewicht_kg: "Gewicht",
+        huelle_vorhanden: "Hülle vorhanden",
+        huelle_notiz: "Hüllen-Notiz",
+        aktueller_nutzer: "Aktueller Nutzer",
+        defekt: "Defekt",
+        schuhe: "Schuhe",
+        plaetze: "Plätze",
+        steuermann_verfuegbar: "Steuermann verfügbar",
+        Baujahr: "Baujahr",
+        Verein: "Verein",
+        blattform: "Blattform",
+        schafttyp: "Schafttyp",
+        gesamtlaenge_cm: "Gesamtlänge",
+        innenhebel_cm: "Innenhebel",
+        unterschiedliche_seiten: "Seiten unterschiedlich",
+        griff_verstellbar: "Griff verstellbar"
+      };
+
+      return map[key] || key || "Standort";
+    }
+
+    function classifyAction(row) {
+      const actionType = String(row.action_type || "").toLowerCase();
+
+      if (
+        actionType === "bootshalle_assign" ||
+        actionType === "bootshalle_move" ||
+        actionType === "bootshalle_remove" ||
+        actionType === "bootshalle_comment"
+      ) {
+        return "bootshalle";
+      }
+
+      if (actionType === "detail") return "detail";
+      if (actionType === "name") return "name";
+      if (actionType === "create") return "create";
+      if (actionType === "delete") return "delete";
+
+      const hasStandort =
+        (row.alter_standort !== null && row.alter_standort !== undefined && row.alter_standort !== "") ||
+        (row.neuer_standort !== null && row.neuer_standort !== undefined && row.neuer_standort !== "");
+
+      if (hasStandort && !actionType) return "standort";
+      if (actionType === "standort") return "standort";
+
+      return actionType || "standort";
+    }
+
+    function buildSearchText(row) {
+      return [
+        row.material_name,
+        row.kategorie,
+        row.user_name,
+        row.field_key,
+        row.old_value,
+        row.new_value,
+        row.alter_standort,
+        row.neuer_standort,
+        row.action_type
+      ].join(" ").toLowerCase();
+    }
+
+    function rowToHtml(row) {
+      const actionClass = classifyAction(row);
+      const fieldName = prettyFieldName(row.field_key, row.action_type || actionClass);
+
+      let beforeValue = row.old_value;
+      let afterValue = row.new_value;
+
+      if (actionClass === "standort") {
+        beforeValue = row.alter_standort;
+        afterValue = row.neuer_standort;
+      }
+
+      if (actionClass === "create") {
+        beforeValue = "";
+        afterValue = row.new_value || row.material_name;
+      }
+
+      if (actionClass === "delete") {
+        beforeValue = row.old_value || row.material_name;
+        afterValue = "";
+      }
+
+      return `
+        <tr>
+          <td>${escapeHtml(new Date(row.geändert_am).toLocaleString("de-DE"))}</td>
+          <td>${escapeHtml(row.material_name || "Unbekannt")}</td>
+          <td>${escapeHtml(row.kategorie || "–")}</td>
+          <td>${escapeHtml(row.user_name || "Unbekannt")}</td>
+          <td>${badgeForAction(row.action_type || actionClass)}</td>
+          <td>${escapeHtml(fieldName)}</td>
+          <td>${formatValue(beforeValue)}</td>
+          <td>${formatValue(afterValue)}</td>
+        </tr>
+      `;
+    }
+
+    function updateKpis(rows) {
+      els.kpiTotal.textContent = rows.length;
+      els.kpiStandort.textContent = rows.filter((r) => classifyAction(r) === "standort").length;
+      els.kpiDetails.textContent = rows.filter((r) => classifyAction(r) === "detail").length;
+      els.kpiBootshalle.textContent = rows.filter((r) => classifyAction(r) === "bootshalle").length;
+    }
+
+    function applyFilters() {
+      const term = String(els.searchInput.value || "").trim().toLowerCase();
+      const actionFilter = els.actionFilter.value;
+
+      const filtered = allRows.filter((row) => {
+        const matchesSearch = !term || row.searchText.includes(term);
+        const matchesAction = actionFilter === "alle" || classifyAction(row) === actionFilter;
+        return matchesSearch && matchesAction;
+      });
+
+      updateKpis(filtered);
+
+      if (!filtered.length) {
+        els.historyTableBody.innerHTML = `
+          <tr>
+            <td colspan="8" class="muted">Keine passenden Verlaufseinträge gefunden.</td>
+          </tr>
+        `;
+      } else {
+        els.historyTableBody.innerHTML = filtered.map(rowToHtml).join("");
+      }
+
+      setStatus(
+        `Aktualisiert: ${new Date().toLocaleString("de-DE")}\n` +
+        `Sichtbare Einträge: ${filtered.length} von ${allRows.length}`,
+        "success"
+      );
+    }
+
+    async function ensureAdminAccess() {
       const { data: authData, error: authError } = await supabaseClient.auth.getUser();
       if (authError) throw authError;
 
       currentUser = authData?.user || null;
-
       if (!currentUser) {
         throw new Error("Nicht eingeloggt. Diese Seite ist nur für Admins verfügbar.");
       }
 
       const { data: profile, error: profileError } = await supabaseClient
         .from("profiles")
-        .select("role, name")
+        .select("role")
         .eq("id", currentUser.id)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
-      currentRole = String(profile?.role || "").toLowerCase();
-
-      if (currentRole !== "admin") {
+      const role = normalizeRole(profile?.role);
+      if (role !== "admin") {
         throw new Error("Kein Zugriff. Diese Seite ist nur für Admins verfügbar.");
       }
     }
 
-    function renderChange(row) {
-      return `
-        <div class="change-box">
-          <div>
-            Standort geändert:
-            <span class="old-value">${escapeHtml(row.alter_standort || "–")}</span>
-            →
-            <span class="new-value">${escapeHtml(row.neuer_standort || "–")}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function updateKpis(filteredRows) {
-      els.kpiTotal.textContent = allRows.length;
-      els.kpiVisible.textContent = filteredRows.length;
-      els.kpiUpdated.textContent = new Date().toLocaleString("de-DE");
-    }
-
-    function renderTable(rows) {
-      if (!rows.length) {
-        els.historyBody.innerHTML = `
-          <tr>
-            <td colspan="5" class="muted">Keine Einträge gefunden.</td>
-          </tr>
-        `;
-        return;
-      }
-
-      els.historyBody.innerHTML = rows.map(row => `
-        <tr>
-          <td>${escapeHtml(row.material_name || "Unbekannt")}</td>
-          <td>${escapeHtml(formatDateTime(row.geändert_am))}</td>
-          <td>${escapeHtml(row.user_name || "Unbekannt")}</td>
-          <td><span class="badge">Standort</span></td>
-          <td>${renderChange(row)}</td>
-        </tr>
-      `).join("");
-    }
-
-    function applyFilter() {
-      const q = String(els.searchInput.value || "").trim().toLowerCase();
-
-      const filtered = allRows.filter(row => {
-        const haystack = [
-          row.material_name,
-          row.user_name,
-          row.alter_standort,
-          row.neuer_standort
-        ].join(" ").toLowerCase();
-
-        return !q || haystack.includes(q);
-      });
-
-      updateKpis(filtered);
-      renderTable(filtered);
-
-      setStatus(
-        `Aktualisiert: ${new Date().toLocaleString("de-DE")}\n` +
-        `Einträge sichtbar: ${filtered.length} von ${allRows.length}`,
-        "success"
-      );
-    }
-
-    async function loadHistory() {
+    async function loadPage() {
       try {
-        setStatus("Lade Verlauf...");
-        els.historyBody.innerHTML = `
+        setStatus("Lade Materialverlauf...");
+        els.historyTableBody.innerHTML = `
           <tr>
-            <td colspan="5" class="muted">Lade Daten...</td>
+            <td colspan="8" class="muted">Lade Daten...</td>
           </tr>
         `;
 
-        await ensureAdmin();
+        await ensureAdminAccess();
 
         const { data: historyRows, error: historyError } = await supabaseClient
           .from("material_history")
-          .select("id, material_id, alter_standort, neuer_standort, geändert_von, geändert_am")
+          .select("*")
           .order("geändert_am", { ascending: false });
 
         if (historyError) throw historyError;
 
-        const materialIds = [...new Set((historyRows || []).map(r => r.material_id).filter(Boolean))];
-        const userIds = [...new Set((historyRows || []).map(r => r.geändert_von).filter(Boolean))];
+        const history = historyRows || [];
 
-        const [materialRes, profilesRes] = await Promise.all([
-          materialIds.length
-            ? supabaseClient
-                .from("material")
-                .select("id, name")
-                .in("id", materialIds)
-            : Promise.resolve({ data: [], error: null }),
+        const materialIds = [...new Set(history.map((h) => h.material_id).filter(Boolean))];
+        const userIds = [...new Set(history.map((h) => h.geändert_von).filter(Boolean))];
 
-          userIds.length
-            ? supabaseClient
-                .from("profiles")
-                .select("id, name")
-                .in("id", userIds)
-            : Promise.resolve({ data: [], error: null })
-        ]);
+        let materialMap = {};
+        let userMap = {};
 
-        if (materialRes.error) throw materialRes.error;
-        if (profilesRes.error) throw profilesRes.error;
+        if (materialIds.length > 0) {
+          const { data: materials, error: materialError } = await supabaseClient
+            .from("material")
+            .select("id, name, kategorie")
+            .in("id", materialIds);
 
-        const materialMap = Object.fromEntries((materialRes.data || []).map(row => [row.id, row.name]));
-        const userMap = Object.fromEntries((profilesRes.data || []).map(row => [row.id, row.name]));
+          if (materialError) throw materialError;
 
-        allRows = (historyRows || []).map(row => ({
-          ...row,
-          material_name: materialMap[row.material_id] || "Unbekannt",
-          user_name: userMap[row.geändert_von] || "Unbekannt"
-        }));
+          materialMap = Object.fromEntries(
+            (materials || []).map((m) => [m.id, m])
+          );
+        }
 
-        applyFilter();
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabaseClient
+            .from("profiles")
+            .select("id, name")
+            .in("id", userIds);
+
+          if (profilesError) throw profilesError;
+
+          userMap = Object.fromEntries(
+            (profiles || []).map((p) => [p.id, p.name || p.id])
+          );
+        }
+
+        allRows = history.map((row) => {
+          const material = materialMap[row.material_id] || null;
+          const mapped = {
+            ...row,
+            material_name: material?.name || `Material ${row.material_id || "?"}`,
+            kategorie: material?.kategorie || "",
+            user_name: userMap[row.geändert_von] || "Unbekannt",
+            action_type: row.action_type || classifyAction(row)
+          };
+
+          return {
+            ...mapped,
+            searchText: buildSearchText(mapped)
+          };
+        });
+
+        applyFilters();
       } catch (err) {
         console.error(err);
-        allRows = [];
-        updateKpis([]);
-        renderTable([]);
         setStatus(`Fehler beim Laden: ${err.message || err}`, "error");
+        els.historyTableBody.innerHTML = `
+          <tr>
+            <td colspan="8" class="muted">Keine Daten verfügbar.</td>
+          </tr>
+        `;
       }
     }
 
-    els.reloadBtn.addEventListener("click", loadHistory);
-    els.searchInput.addEventListener("input", applyFilter);
+    els.reloadBtn.addEventListener("click", loadPage);
+    els.searchInput.addEventListener("input", applyFilters);
+    els.actionFilter.addEventListener("change", applyFilters);
 
-    loadHistory();
+    loadPage();
   </script>
 </body>
 </html>

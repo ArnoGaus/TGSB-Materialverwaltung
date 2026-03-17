@@ -761,6 +761,34 @@
       return raw;
     }
 
+    function stringifyHistoryValue(value) {
+      if (value === undefined || value === null || value === "") return "";
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    }
+
+    async function writeHistory({ materialId, fieldKey, beforeValue, afterValue }) {
+      const historyPayload = {
+        material_id: materialId,
+        alter_standort: null,
+        neuer_standort: null,
+        geändert_von: currentUser.id,
+        geändert_am: new Date().toISOString(),
+        field_key: fieldKey,
+        old_value: stringifyHistoryValue(beforeValue),
+        new_value: stringifyHistoryValue(afterValue),
+        action_type: "detail"
+      };
+
+      const { error } = await supabaseClient
+        .from("material_history")
+        .insert(historyPayload);
+
+      if (error) {
+        console.warn("History konnte nicht geschrieben werden:", error);
+      }
+    }
+
     function buildSearchText(row) {
       const detailText = JSON.stringify(row.details || {});
       return [row.id, row.name, row.kategorie, row.standort, detailText].join(" ").toLowerCase();
@@ -1321,90 +1349,122 @@
       if (error) throw error;
     }
 
-    async function saveEdit() {
-      if (!currentEditContext || !currentUser || !canEditDetails) return;
+    
+  async function saveEdit() {
+    if (!currentEditContext || !currentUser || !canEditDetails) return;
 
-      const { materialId, key, category } = currentEditContext;
-      const rawInput = els.editValueInput.value;
-      const parsedValue = parseEditorValue(rawInput);
+    const { materialId, key, category } = currentEditContext;
+    const rawInput = els.editValueInput.value;
+    const parsedValue = parseEditorValue(rawInput);
 
-      const rowIndex = allRows.findIndex((r) => r.id === materialId);
-      if (rowIndex < 0) {
-        setStatus("Material nicht gefunden.", "error");
-        return;
+    const rowIndex = allRows.findIndex((r) => r.id === materialId);
+    if (rowIndex < 0) {
+      setStatus("Material nicht gefunden.", "error");
+      return;
+    }
+
+    const row = allRows[rowIndex];
+    const beforeValue = getEditableRawValue(row, key, category);
+    const nextDetails = structuredClone(row.details || {});
+
+    if (category === "Boote") {
+      nextDetails[key] = parsedValue;
+
+      if (key === "steuermann_verfuegbar") {
+        delete nextDetails["steuermann_verfügbar"];
+        delete nextDetails["steuermann verfügbar"];
+        delete nextDetails["steuermann"];
+        delete nextDetails["cox"];
+        delete nextDetails["cox_available"];
+        delete nextDetails["cox_verfuegbar"];
+        nextDetails.steuermann_verfuegbar = parsedValue;
       }
-
-      const row = allRows[rowIndex];
-      const nextDetails = structuredClone(row.details || {});
-
-      if (category === "Boote") {
-        nextDetails[key] = parsedValue;
-        if (key === "steuermann_verfuegbar") {
-          delete nextDetails["steuermann_verfügbar"];
-          delete nextDetails["steuermann verfügbar"];
-          delete nextDetails["steuermann"];
-          delete nextDetails["cox"];
-          delete nextDetails["cox_available"];
-          delete nextDetails["cox_verfuegbar"];
-          nextDetails.steuermann_verfuegbar = parsedValue;
-        }
-      } else if (category === "Skulls") {
-        if (key === "Blattform") nextDetails.blattform = parsedValue;
-        else if (key === "Schafttyp") nextDetails.schafttyp = parsedValue;
-        else if (key === "Gesamtlänge") nextDetails.gesamtlaenge_cm = parsedValue;
-        else if (key === "Innenheben") nextDetails.innenhebel_cm = parsedValue;
-        else nextDetails[key] = parsedValue;
-      } else if (category === "Riemen") {
-        if (key === "Blattform") nextDetails.blattform = parsedValue;
-        else if (key === "Schaft") nextDetails.schafttyp = parsedValue;
-        else if (key === "Gesamtlänge" && parsedValue && typeof parsedValue === "object") {
-          nextDetails.backbord = nextDetails.backbord || {};
-          nextDetails.steuerbord = nextDetails.steuerbord || {};
-          nextDetails.backbord.gesamtlaenge_cm = parsedValue.backbord ?? "";
-          nextDetails.steuerbord.gesamtlaenge_cm = parsedValue.steuerbord ?? "";
-        } else if (key === "Innenheben" && parsedValue && typeof parsedValue === "object") {
-          nextDetails.backbord = nextDetails.backbord || {};
-          nextDetails.steuerbord = nextDetails.steuerbord || {};
-          nextDetails.backbord.innenhebel_cm = parsedValue.backbord ?? "";
-          nextDetails.steuerbord.innenhebel_cm = parsedValue.steuerbord ?? "";
-        } else if (key === "seiten_unterschiedlich") {
-          nextDetails.unterschiedliche_seiten = parsedValue;
-        } else if (key === "griff_verstellbar") {
-          nextDetails.griff_verstellbar = parsedValue;
-        } else {
-          nextDetails[key] = parsedValue;
-        }
+    } else if (category === "Skulls") {
+      if (key === "Blattform") nextDetails.blattform = parsedValue;
+      else if (key === "Schafttyp") nextDetails.schafttyp = parsedValue;
+      else if (key === "Gesamtlänge") nextDetails.gesamtlaenge_cm = parsedValue;
+      else if (key === "Innenheben") nextDetails.innenhebel_cm = parsedValue;
+      else nextDetails[key] = parsedValue;
+    } else if (category === "Riemen") {
+      if (key === "Blattform") {
+        nextDetails.blattform = parsedValue;
+      } else if (key === "Schaft") {
+        nextDetails.schafttyp = parsedValue;
+      } else if (key === "Gesamtlänge" && parsedValue && typeof parsedValue === "object") {
+        nextDetails.backbord = nextDetails.backbord || {};
+        nextDetails.steuerbord = nextDetails.steuerbord || {};
+        nextDetails.backbord.gesamtlaenge_cm = parsedValue.backbord ?? "";
+        nextDetails.steuerbord.gesamtlaenge_cm = parsedValue.steuerbord ?? "";
+      } else if (key === "Innenheben" && parsedValue && typeof parsedValue === "object") {
+        nextDetails.backbord = nextDetails.backbord || {};
+        nextDetails.steuerbord = nextDetails.steuerbord || {};
+        nextDetails.backbord.innenhebel_cm = parsedValue.backbord ?? "";
+        nextDetails.steuerbord.innenhebel_cm = parsedValue.steuerbord ?? "";
+      } else if (key === "seiten_unterschiedlich") {
+        nextDetails.unterschiedliche_seiten = parsedValue;
+      } else if (key === "griff_verstellbar") {
+        nextDetails.griff_verstellbar = parsedValue;
       } else {
         nextDetails[key] = parsedValue;
       }
-
-      try {
-        els.saveEditBtn.disabled = true;
-        els.saveEditBtn.textContent = "Speichert...";
-
-        await upsertMaterialDetails(materialId, nextDetails);
-
-        const normalizedDetails = row.kategorie === "Boote" ? normalizeBoatDetails(nextDetails) : nextDetails;
-        allRows[rowIndex] = {
-          ...row,
-          details: normalizedDetails,
-          searchText: buildSearchText({ ...row, details: normalizedDetails })
-        };
-
-        applyFilter();
-        closeEditModal();
-        setStatus(
-          `Änderung gespeichert.\nMaterial: ${row.name}\nFeld: ${key}\nGeändert von: ${currentUser.email || currentUser.id}\nHinweis: Die spätere Admin-Änderungsseite kann dafür separat ergänzt werden.`,
-          "success"
-        );
-      } catch (err) {
-        console.error(err);
-        setStatus(`Fehler beim Speichern: ${err.message || err}`, "error");
-      } finally {
-        els.saveEditBtn.disabled = false;
-        els.saveEditBtn.textContent = "Speichern";
-      }
+    } else {
+      nextDetails[key] = parsedValue;
     }
+
+    const normalizedDetails =
+      row.kategorie === "Boote"
+        ? normalizeBoatDetails(nextDetails)
+        : nextDetails;
+
+    const afterValue = getEditableRawValue(
+      { ...row, details: normalizedDetails },
+      key,
+      category
+    );
+
+    const beforeString = stringifyHistoryValue(beforeValue);
+    const afterString = stringifyHistoryValue(afterValue);
+
+    try {
+      els.saveEditBtn.disabled = true;
+      els.saveEditBtn.textContent = "Speichert...";
+
+      await upsertMaterialDetails(materialId, nextDetails);
+
+      if (beforeString !== afterString) {
+        await writeHistory({
+          materialId,
+          fieldKey: key,
+          beforeValue,
+          afterValue
+        });
+      }
+
+      allRows[rowIndex] = {
+        ...row,
+        details: normalizedDetails,
+        searchText: buildSearchText({
+          ...row,
+          details: normalizedDetails
+        })
+      };
+
+      applyFilter();
+      closeEditModal();
+
+      setStatus(
+        `Änderung gespeichert.\nMaterial: ${row.name}\nFeld: ${key}\nGeändert von: ${currentUser.email || currentUser.id}`,
+        "success"
+      );
+    } catch (err) {
+      console.error(err);
+      setStatus(`Fehler beim Speichern: ${err.message || err}`, "error");
+    } finally {
+      els.saveEditBtn.disabled = false;
+      els.saveEditBtn.textContent = "Speichern";
+    }
+  }
+
 
     async function loadPage() {
       try {

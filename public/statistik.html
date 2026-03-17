@@ -1203,8 +1203,8 @@
 
         const debugLines = [
           `material: ${material.length}${materialRes.error ? " | Fehler: " + materialRes.error.message : ""}`,
-          `material_details: ${details.length}${detailsRes.error ? " | Fehler: " + detailsRes.error.message : ""}`,
-          `material_history: ${historyAll.length}${historyRes.error ? " | Fehler: " + historyRes.error.message : ""}`
+          //`material_details: ${details.length}${detailsRes.error ? " | Fehler: " + detailsRes.error.message : ""}`,
+          //`material_history: ${historyAll.length}${historyRes.error ? " | Fehler: " + historyRes.error.message : ""}`
         ];
 
         if (materialRes.error) {
@@ -1340,11 +1340,11 @@
         });
 
         debugLines.push(`Boote: ${boote.length}`);
-        debugLines.push(`Boote mit plaetze: ${boatsWithSeatInfo.length}`);
-        debugLines.push(`Routen: ${routeRows.length}`);
+        //debugLines.push(`Boote mit plaetze: ${boatsWithSeatInfo.length}`);
+        //debugLines.push(`Routen: ${routeRows.length}`);
         debugLines.push(`Aktive Nutzer: ${distinctUsers.size}`);
-        debugLines.push(`Boote mit Baujahr: ${yearRows.reduce((sum, r) => sum + r.value, 0)}`);
-        debugLines.push(`Vereine mit klassifizierten Booten: ${classByClub.labels.length}`);
+        //debugLines.push(`Boote mit Baujahr: ${yearRows.reduce((sum, r) => sum + r.value, 0)}`);
+        //debugLines.push(`Vereine mit klassifizierten Booten: ${classByClub.labels.length}`);
 
         if (detailsRes.error || historyRes.error) {
           setStatus("Teilweise geladen\n\n" + debugLines.join("\n"), true);

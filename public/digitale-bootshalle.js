@@ -1,8 +1,16 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Supabase URL oder Anon Key fehlt.");
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+console.log("Supabase Client erstellt:", !!supabase);
 
 const STANDORTE = [
   { id: "SRV", name: "Siegburg (SRV)" },
@@ -13,8 +21,10 @@ const STANDORTE = [
 const T_MATERIAL = "material";
 const T_DETAILS = "material_details";
 const T_SLOTS = "digitale_bootshalle_slots";
+const T_HISTORY = "material_history";
 const BONN_X = 10;
 
+// DOM
 const standortSelect = document.getElementById("standortSelect");
 const statusText = document.getElementById("statusText");
 const rolePill = document.getElementById("rolePill");
@@ -47,27 +57,7 @@ const errorMsgEl = document.getElementById("errorMsg");
 const errorCloseBtn = document.getElementById("errorCloseBtn");
 const errorOkBtn = document.getElementById("errorOkBtn");
 
-function showError(message, title = "Fehler") {
-  if (!errorOverlay) {
-    console.error(title, message);
-    return;
-  }
-  errorTitleEl.textContent = title;
-  errorMsgEl.textContent = message;
-  errorOverlay.style.display = "flex";
-}
-
-function hideError() {
-  if (!errorOverlay) return;
-  errorOverlay.style.display = "none";
-}
-
-errorCloseBtn?.addEventListener("click", hideError);
-errorOkBtn?.addEventListener("click", hideError);
-errorOverlay?.addEventListener("click", (e) => {
-  if (e.target === errorOverlay) hideError();
-});
-
+// State
 let standort = STANDORTE[0]?.id || "SRV";
 let boatsHere = [];
 let occupancy = {};
@@ -80,62 +70,9 @@ let currentModalSlotId = null;
 let currentRole = "visitor";
 let canEditBootshalle = false;
 
-function normalizeRole(rawRole) {
-  const role = String(rawRole || "").trim().toLowerCase();
-  if (role === "admin") return "admin";
-  if (role === "user") return "user";
-  return "visitor";
-}
-
-async function loadCurrentRole() {
-  try {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
-
-    const user = userData?.user || null;
-    if (!user) {
-      currentRole = "visitor";
-      canEditBootshalle = false;
-      updateRoleUI();
-      return;
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) console.warn("Profil konnte nicht geladen werden:", profileError);
-
-    currentRole = normalizeRole(profile?.role);
-    canEditBootshalle = currentRole === "user" || currentRole === "admin";
-    updateRoleUI();
-  } catch (err) {
-    console.error(err);
-    currentRole = "visitor";
-    canEditBootshalle = false;
-    updateRoleUI();
-  }
-}
-
-function updateRoleUI() {
-  if (rolePill) {
-    rolePill.textContent = `Rolle: ${currentRole}`;
-  }
-
-  if (modeNotice) {
-    modeNotice.textContent = canEditBootshalle
-      ? "User und Admin können die digitale Bootshalle bearbeiten."
-      : "Visitor-Modus: digitale Bootshalle nur lesbar.";
-  }
-
-  if (!canEditBootshalle) {
-    selectedBoatId = null;
-    updateSelectedUI();
-  }
-}
-
+// -------------------------------------
+// Layouts
+// -------------------------------------
 const LAYOUTS = {
   SRV: {
     title: "Digitale Bootshalle – Siegburg",
@@ -148,7 +85,7 @@ const LAYOUTS = {
             slotPrefix: "srv-h1",
             split: { left: 7, right: 7 },
             requiredSeats: 1,
-            slotOverrides: { "srv-h1-L-5": "blocked" }
+            slotOverrides: { "srv-h1-L-5": "blocked" },
           },
           {
             title: "2er-Halle",
@@ -156,10 +93,17 @@ const LAYOUTS = {
             split: { left: 6, right: 5 },
             requiredSeats: null,
             slotOverrides: {
-              "srv-h2-L-1": 2, "srv-h2-L-2": 2, "srv-h2-L-3": 2,
-              "srv-h2-L-4": "blocked", "srv-h2-L-5": "blocked", "srv-h2-L-6": 2,
-              "srv-h2-R-1": [2, 4], "srv-h2-R-2": 4, "srv-h2-R-3": "blocked",
-              "srv-h2-R-4": "blocked", "srv-h2-R-5": "blocked",
+              "srv-h2-L-1": 2,
+              "srv-h2-L-2": 2,
+              "srv-h2-L-3": 2,
+              "srv-h2-L-4": "blocked",
+              "srv-h2-L-5": "blocked",
+              "srv-h2-L-6": 2,
+              "srv-h2-R-1": [2, 4],
+              "srv-h2-R-2": 4,
+              "srv-h2-R-3": "blocked",
+              "srv-h2-R-4": "blocked",
+              "srv-h2-R-5": "blocked",
             },
           },
           {
@@ -168,10 +112,17 @@ const LAYOUTS = {
             split: { left: 5, right: 6 },
             requiredSeats: null,
             slotOverrides: {
-              "srv-h4-L-1": null, "srv-h4-L-2": null, "srv-h4-L-3": "blocked",
-              "srv-h4-L-4": "blocked", "srv-h4-L-5": "blocked", "srv-h4-R-1": [2, 4],
-              "srv-h4-R-2": 4, "srv-h4-R-3": 4, "srv-h4-R-4": "blocked",
-              "srv-h4-R-5": "blocked", "srv-h4-R-6": "blocked",
+              "srv-h4-L-1": null,
+              "srv-h4-L-2": null,
+              "srv-h4-L-3": "blocked",
+              "srv-h4-L-4": "blocked",
+              "srv-h4-L-5": "blocked",
+              "srv-h4-R-1": [2, 4],
+              "srv-h4-R-2": 4,
+              "srv-h4-R-3": 4,
+              "srv-h4-R-4": "blocked",
+              "srv-h4-R-5": "blocked",
+              "srv-h4-R-6": "blocked",
             },
           },
         ],
@@ -226,46 +177,75 @@ const LAYOUTS = {
   },
 };
 
-function ensureCommentUI() {
-  if (!slotModalOverlay) return;
-  if (slotCommentInput && slotCommentSaveBtn && slotCommentStatus) return;
-
-  const modalContent = slotModalOverlay.querySelector(".modal-content") || slotModalOverlay.firstElementChild || slotModalOverlay;
-  const wrapper = document.createElement("div");
-  wrapper.style.display = "grid";
-  wrapper.style.gap = "8px";
-  wrapper.style.margin = "14px 0";
-  wrapper.innerHTML = `
-    <div style="font-weight:700;">Kommentar zum Slot</div>
-    <textarea
-      id="slotCommentInput"
-      rows="3"
-      placeholder="Optionaler Kommentar, z. B. Defekt, reserviert, Zubehör im Boot ..."
-      style="width:100%; resize:vertical; padding:10px; border-radius:10px; border:1px solid #ccc; font:inherit;"
-    ></textarea>
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <button id="slotCommentSaveBtn" class="admin-btn" type="button">Kommentar speichern</button>
-      <div id="slotCommentStatus" style="font-size:12px; opacity:0.75;"></div>
-    </div>
-  `;
-
-  const resultsParent = slotResults?.parentElement;
-  if (resultsParent) resultsParent.insertBefore(wrapper, slotResults);
-  else modalContent.appendChild(wrapper);
-
-  slotCommentInput = document.getElementById("slotCommentInput");
-  slotCommentSaveBtn = document.getElementById("slotCommentSaveBtn");
-  slotCommentStatus = document.getElementById("slotCommentStatus");
-
-  slotCommentSaveBtn?.addEventListener("click", async () => {
-    if (!currentModalSlotId) return;
-    if (!canEditBootshalle) {
-      showError("Visitor können in der digitalen Bootshalle nichts ändern.", "Nur Ansicht");
-      return;
-    }
-    await saveSlotComment(currentModalSlotId, slotCommentInput?.value || "");
-  });
+// -------------------------------------
+// Helpers
+// -------------------------------------
+function normalizeRole(rawRole) {
+  const role = String(rawRole || "").trim().toLowerCase();
+  if (role === "admin") return "admin";
+  if (role === "user") return "user";
+  return "visitor";
 }
+
+function stringifyHistoryValue(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error("getCurrentUserId Fehler:", error);
+    return null;
+  }
+  return data?.user?.id ?? null;
+}
+
+async function insertHistoryRows(rows) {
+  if (!rows || rows.length === 0) return true;
+
+  const cleanRows = rows.map((row) => ({
+    material_id: row.material_id ?? null,
+    alter_standort: row.alter_standort ?? null,
+    neuer_standort: row.neuer_standort ?? null,
+    geändert_von: row.geändert_von ?? null,
+    geändert_am: row.geändert_am ?? new Date().toISOString(),
+    field_key: row.field_key ?? null,
+    old_value: row.old_value ?? "",
+    new_value: row.new_value ?? "",
+    action_type: row.action_type ?? "standort",
+  }));
+
+  const { error } = await supabase.from(T_HISTORY).insert(cleanRows);
+  if (error) {
+    console.error("History insert Fehler:", error, cleanRows);
+    showError(`Verlauf konnte nicht gespeichert werden:\n${error.message || error}`, "History-Fehler");
+    return false;
+  }
+  return true;
+}
+
+function showError(message, title = "Fehler") {
+  if (!errorOverlay) {
+    console.error(title, message);
+    return;
+  }
+  errorTitleEl.textContent = title;
+  errorMsgEl.textContent = message;
+  errorOverlay.style.display = "flex";
+}
+
+function hideError() {
+  if (!errorOverlay) return;
+  errorOverlay.style.display = "none";
+}
+
+errorCloseBtn?.addEventListener("click", hideError);
+errorOkBtn?.addEventListener("click", hideError);
+errorOverlay?.addEventListener("click", (e) => {
+  if (e.target === errorOverlay) hideError();
+});
 
 function buildLayoutForStandort(standortId) {
   const cfg = LAYOUTS[standortId];
@@ -357,9 +337,15 @@ function rejectReason(boat, slotId) {
   if (rule === "blocked") return "Dieser Platz ist gesperrt. Hier kann kein Boot eingelagert werden.";
 
   const seats = Number(boat?.seats);
-  if (!Number.isFinite(seats)) return "Dieses Boot hat keine gültige Sitzplatz-Anzahl und kann hier nicht eingelagert werden.";
-  if (typeof rule === "number") return `Hier passen nur ${rule}er-Boote. Dieses Boot hat ${seats} Plätze.`;
-  if (Array.isArray(rule)) return `Hier passen nur ${rule.join("er / ")}er-Boote. Dieses Boot hat ${seats} Plätze.`;
+  if (!Number.isFinite(seats)) {
+    return "Dieses Boot hat keine gültige Sitzplatz-Anzahl und kann hier nicht eingelagert werden.";
+  }
+  if (typeof rule === "number") {
+    return `Hier passen nur ${rule}er-Boote. Dieses Boot hat ${seats} Plätze.`;
+  }
+  if (Array.isArray(rule)) {
+    return `Hier passen nur ${rule.join("er / ")}er-Boote. Dieses Boot hat ${seats} Plätze.`;
+  }
   return "Dieses Boot passt nicht in diesen Platz.";
 }
 
@@ -377,6 +363,14 @@ function getSlotBoatId(slotId) {
 
 function getSlotComment(slotId) {
   return String(getSlotEntry(slotId).kommentar || "");
+}
+
+function findCurrentSlotOfBoat(bootId) {
+  const bId = String(bootId);
+  for (const [slotId, entry] of Object.entries(occupancy || {})) {
+    if (String(entry?.boot_id || "") === bId) return slotId;
+  }
+  return null;
 }
 
 function usedBoatIdsSet() {
@@ -429,12 +423,25 @@ function safeRenderAll(context = "") {
 
 function assertDom() {
   const required = {
-    standortSelect, statusText, unassignedListEl, unassignedEmptyEl, countsListEl,
-    countsEmptyEl, layoutRoot, selectedBox, selectedBoatName, slotModalOverlay,
-    slotModalSlotId, slotSearch, slotResults,
+    standortSelect,
+    statusText,
+    unassignedListEl,
+    unassignedEmptyEl,
+    countsListEl,
+    countsEmptyEl,
+    layoutRoot,
+    selectedBox,
+    selectedBoatName,
+    slotModalOverlay,
+    slotModalSlotId,
+    slotSearch,
+    slotResults,
   };
 
-  const missing = Object.entries(required).filter(([, el]) => !el).map(([name]) => name);
+  const missing = Object.entries(required)
+    .filter(([, el]) => !el)
+    .map(([name]) => name);
+
   if (missing.length) {
     showError(`Fehlende HTML-IDs: ${missing.join(", ")}`, "Fehler");
     return false;
@@ -442,6 +449,61 @@ function assertDom() {
   return true;
 }
 
+// -------------------------------------
+// Rechte
+// -------------------------------------
+async function loadCurrentRole() {
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+
+    const user = userData?.user || null;
+    if (!user) {
+      currentRole = "visitor";
+      canEditBootshalle = false;
+      updateRoleUI();
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) console.warn("Profil konnte nicht geladen werden:", profileError);
+
+    currentRole = normalizeRole(profile?.role);
+    canEditBootshalle = currentRole === "user" || currentRole === "admin";
+    updateRoleUI();
+  } catch (err) {
+    console.error(err);
+    currentRole = "visitor";
+    canEditBootshalle = false;
+    updateRoleUI();
+  }
+}
+
+function updateRoleUI() {
+  if (rolePill) {
+    rolePill.textContent = `Rolle: ${currentRole}`;
+  }
+
+  if (modeNotice) {
+    modeNotice.textContent = canEditBootshalle
+      ? "User und Admin können die digitale Bootshalle bearbeiten."
+      : "Visitor-Modus: digitale Bootshalle nur lesbar.";
+  }
+
+  if (!canEditBootshalle) {
+    selectedBoatId = null;
+    updateSelectedUI();
+  }
+}
+
+// -------------------------------------
+// Laden
+// -------------------------------------
 async function loadData() {
   statusText.textContent = "Lade Daten…";
 
@@ -477,12 +539,17 @@ async function loadData() {
       (details || []).forEach((r) => {
         const bid = r.material_id;
         const seats = r.values?.plaetze;
-        if (bid && seats !== undefined && seats !== null) seatsMap.set(String(bid), seats);
+        if (bid && seats !== undefined && seats !== null) {
+          seatsMap.set(String(bid), seats);
+        }
       });
     }
   }
 
-  boatsHere = boatRows.map((b) => ({ ...b, seats: seatsMap.get(String(b.id)) ?? null }));
+  boatsHere = boatRows.map((b) => ({
+    ...b,
+    seats: seatsMap.get(String(b.id)) ?? null,
+  }));
 
   const { data: slots, error: slotsErr } = await supabase
     .from(T_SLOTS)
@@ -516,13 +583,18 @@ async function loadData() {
   });
 
   occupancy = nextOcc;
-  statusText.textContent = ignored > 0
-    ? `Geladen: ${boatsHere.length} Boote (⚠ ${ignored} alte Zuordnungen ignoriert)`
-    : `Geladen: ${boatsHere.length} Boote`;
+
+  statusText.textContent =
+    ignored > 0
+      ? `Geladen: ${boatsHere.length} Boote (⚠ ${ignored} alte Zuordnungen ignoriert)`
+      : `Geladen: ${boatsHere.length} Boote`;
 
   safeRenderAll("loadData done");
 }
 
+// -------------------------------------
+// Persistenz
+// -------------------------------------
 async function saveSlotRow(slotId, bootId, kommentar = "") {
   if (!canEditBootshalle) {
     showError("Visitor können in der digitalen Bootshalle nichts ändern.", "Nur Ansicht");
@@ -533,17 +605,24 @@ async function saveSlotRow(slotId, bootId, kommentar = "") {
     standort,
     slot_id: String(slotId),
     boot_id: bootId ? String(bootId) : null,
-    kommentar: kommentar?.trim() || "",
+    kommentar: String(kommentar || "").trim(),
   };
 
-  const { error } = await supabase.from(T_SLOTS).upsert(payload, { onConflict: "standort,slot_id" });
+  const { error } = await supabase
+    .from(T_SLOTS)
+    .upsert(payload, { onConflict: "standort,slot_id" });
+
   if (error) {
     console.error("Supabase saveSlotRow error:", error);
-    showError(`Speichern fehlgeschlagen:\n${error.message || error.code || error}`, "Fehler");
+    showError(`Speichern fehlgeschlagen:\n${error.message || error}`, "Fehler");
     return false;
   }
 
-  occupancy[String(slotId)] = { boot_id: payload.boot_id, kommentar: payload.kommentar };
+  occupancy[String(slotId)] = {
+    boot_id: payload.boot_id,
+    kommentar: payload.kommentar,
+  };
+
   return true;
 }
 
@@ -552,6 +631,7 @@ async function assignBoatToSlot(bootId, slotId) {
     showError("Visitor können in der digitalen Bootshalle nichts ändern.", "Nur Ansicht");
     return false;
   }
+
   if (!bootId || !slotId) return false;
 
   const bId = String(bootId);
@@ -568,23 +648,69 @@ async function assignBoatToSlot(bootId, slotId) {
     return false;
   }
 
-  const existingComment = getSlotComment(sId);
+  const userId = await getCurrentUserId();
+  const oldSlotId = findCurrentSlotOfBoat(bId);
+  const oldCommentAtTarget = getSlotComment(sId);
+  const currentTargetBoatId = getSlotBoatId(sId);
 
-  const delRes = await supabase.from(T_SLOTS).delete().eq("standort", standort).eq("boot_id", bId);
-  if (delRes.error) {
-    console.error(delRes.error);
-    showError("Speichern fehlgeschlagen (Delete).", "Fehler");
+  if (currentTargetBoatId && currentTargetBoatId !== bId) {
+    showError("Dieser Slot ist bereits belegt. Entferne zuerst das aktuelle Boot.", "Slot belegt");
     return false;
   }
 
-  const ok = await saveSlotRow(sId, bId, existingComment);
+  const delRes = await supabase
+    .from(T_SLOTS)
+    .delete()
+    .eq("standort", standort)
+    .eq("boot_id", bId);
+
+  if (delRes.error) {
+    console.error(delRes.error);
+    showError("Speichern fehlgeschlagen (altes Slot-Mapping löschen).", "Fehler");
+    return false;
+  }
+
+  const ok = await saveSlotRow(sId, bId, oldCommentAtTarget);
   if (!ok) return false;
 
   for (const [k, v] of Object.entries(occupancy)) {
-    if (String(v?.boot_id || "") === bId && k !== sId) delete occupancy[k];
+    if (String(v?.boot_id || "") === bId && k !== sId) {
+      delete occupancy[k];
+    }
   }
 
-  occupancy[sId] = { boot_id: bId, kommentar: existingComment };
+  occupancy[sId] = {
+    boot_id: bId,
+    kommentar: oldCommentAtTarget,
+  };
+
+  const slotActionType =
+    !oldSlotId
+      ? "bootshalle_assign"
+      : oldSlotId !== sId
+        ? "bootshalle_move"
+        : null;
+
+  if (slotActionType) {
+    const historyOk = await insertHistoryRows([
+      {
+        material_id: bId,
+        alter_standort: boat?.standort || standort,
+        neuer_standort: boat?.standort || standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+        field_key: "bootshalle_slot",
+        old_value: stringifyHistoryValue(oldSlotId || ""),
+        new_value: stringifyHistoryValue(sId),
+        action_type: slotActionType,
+      },
+    ]);
+
+    if (!historyOk) {
+      console.warn("Bootshallen-Slot-History konnte nicht gespeichert werden.");
+    }
+  }
+
   selectedBoatId = null;
   updateSelectedUI();
   safeRenderAll("assignBoatToSlot");
@@ -600,8 +726,30 @@ async function saveSlotComment(slotId, kommentar) {
 
   const sId = String(slotId);
   const currentBoatId = getSlotBoatId(sId);
-  const ok = await saveSlotRow(sId, currentBoatId, kommentar);
+  const oldComment = getSlotComment(sId);
+  const newComment = String(kommentar || "").trim();
+
+  const ok = await saveSlotRow(sId, currentBoatId, newComment);
   if (!ok) return false;
+
+  if (currentBoatId && oldComment !== newComment) {
+    const userId = await getCurrentUserId();
+    const boat = boatById(currentBoatId);
+
+    await insertHistoryRows([
+      {
+        material_id: currentBoatId,
+        alter_standort: boat?.standort || standort,
+        neuer_standort: boat?.standort || standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+        field_key: "bootshalle_kommentar",
+        old_value: stringifyHistoryValue(oldComment),
+        new_value: stringifyHistoryValue(newComment),
+        action_type: "bootshalle_comment",
+      },
+    ]);
+  }
 
   if (slotCommentStatus) {
     slotCommentStatus.textContent = "Kommentar gespeichert.";
@@ -621,7 +769,15 @@ async function clearSlot(slotId) {
   }
 
   const sId = String(slotId);
-  const { error } = await supabase.from(T_SLOTS).delete().eq("standort", standort).eq("slot_id", sId);
+  const currentBoatId = getSlotBoatId(sId);
+  const currentComment = getSlotComment(sId);
+
+  const { error } = await supabase
+    .from(T_SLOTS)
+    .delete()
+    .eq("standort", standort)
+    .eq("slot_id", sId);
+
   if (error) {
     console.error(error);
     showError("Entfernen fehlgeschlagen.", "Fehler");
@@ -629,11 +785,47 @@ async function clearSlot(slotId) {
   }
 
   delete occupancy[sId];
+
+  if (currentBoatId) {
+    const userId = await getCurrentUserId();
+    const boat = boatById(currentBoatId);
+
+    const historyRows = [
+      {
+        material_id: currentBoatId,
+        alter_standort: boat?.standort || standort,
+        neuer_standort: boat?.standort || standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+        field_key: "bootshalle_slot",
+        old_value: stringifyHistoryValue(sId),
+        new_value: "",
+        action_type: "bootshalle_remove",
+      },
+      {
+        material_id: currentBoatId,
+        alter_standort: boat?.standort || standort,
+        neuer_standort: boat?.standort || standort,
+        geändert_von: userId,
+        geändert_am: new Date().toISOString(),
+        field_key: "bootshalle_kommentar",
+        old_value: stringifyHistoryValue(currentComment),
+        new_value: "",
+        action_type: "bootshalle_comment",
+      },
+    ].filter((row) => row.old_value !== row.new_value);
+
+    await insertHistoryRows(historyRows);
+  }
+
   safeRenderAll("clearSlot");
   renderSlotModalResults();
   return true;
 }
 
+// -------------------------------------
+// UI Actions
+// -------------------------------------
 function onBoatPointerDown(bootId) {
   if (!canEditBootshalle) return;
   clearTimeout(longPressTimer);
@@ -669,6 +861,9 @@ clearSelectionBtn?.addEventListener("click", () => {
   safeRenderAll("clearSelection");
 });
 
+// -------------------------------------
+// Render
+// -------------------------------------
 function renderUnassigned() {
   const list = unassignedBoats();
   unassignedListEl.innerHTML = "";
@@ -676,7 +871,9 @@ function renderUnassigned() {
 
   list.forEach((b) => {
     const chip = document.createElement("div");
-    chip.className = `boot-chip ${selectedBoatId === String(b.id) ? "is-selected" : ""} ${!canEditBootshalle ? "is-readonly" : ""}`;
+    chip.className = `boot-chip ${selectedBoatId === String(b.id) ? "is-selected" : ""} ${
+      !canEditBootshalle ? "is-readonly" : ""
+    }`;
     chip.draggable = canEditBootshalle;
     chip.innerHTML = `
       <div style="font-weight:700;">${b.name}</div>
@@ -702,7 +899,13 @@ function renderUnassigned() {
 }
 
 function renderCounts() {
-  const buckets = new Map([[1, 0], [2, 0], [4, 0], [8, 0], ["unbekannt", 0]]);
+  const buckets = new Map([
+    [1, 0],
+    [2, 0],
+    [4, 0],
+    [8, 0],
+    ["unbekannt", 0],
+  ]);
 
   boatsHere.forEach((b) => {
     const bucket = seatBucket(b.seats);
@@ -719,7 +922,9 @@ function renderCounts() {
     const count = buckets.get(k) || 0;
     if (count === 0 && k !== "unbekannt") return;
 
-    const label = k === "unbekannt" ? "Unbekannt (keine Plätze in Details)" : `${k}er-Boote`;
+    const label =
+      k === "unbekannt" ? "Unbekannt (keine Plätze in Details)" : `${k}er-Boote`;
+
     const row = document.createElement("div");
     row.className = "count-item";
     row.innerHTML = `<div style="font-weight:700;">${label}</div><div style="font-weight:900;">${count}</div>`;
@@ -739,7 +944,9 @@ function openSlotModal(slotId) {
   if (slotCommentSaveBtn) {
     slotCommentSaveBtn.disabled = !canEditBootshalle;
   }
-  if (slotCommentStatus) slotCommentStatus.textContent = "";
+  if (slotCommentStatus) {
+    slotCommentStatus.textContent = "";
+  }
 
   renderSlotModalResults();
   slotModalOverlay.style.display = "flex";
@@ -800,7 +1007,12 @@ function renderSlotModalResults() {
 
   const list = unassignedBoats()
     .filter((b) => canPlaceBoatInSlot(b, currentModalSlotId))
-    .filter((b) => !q || String(b.name || "").toLowerCase().includes(q) || String(b.id || "").toLowerCase().includes(q));
+    .filter(
+      (b) =>
+        !q ||
+        String(b.name || "").toLowerCase().includes(q) ||
+        String(b.id || "").toLowerCase().includes(q)
+    );
 
   if (list.length === 0) {
     const div = document.createElement("div");
@@ -817,7 +1029,9 @@ function renderSlotModalResults() {
       row.style.padding = "10px";
       row.style.border = "1px solid rgba(255,255,255,0.12)";
       row.style.borderRadius = "10px";
-      row.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${b.seats ? `${b.seats} Plätze` : "Plätze ?"})</span>`;
+      row.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${
+        b.seats ? `${b.seats} Plätze` : "Plätze ?"
+      })</span>`;
       slotResults.appendChild(row);
       return;
     }
@@ -825,7 +1039,9 @@ function renderSlotModalResults() {
     const btn = document.createElement("button");
     btn.className = "admin-btn";
     btn.style.textAlign = "left";
-    btn.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${b.seats ? `${b.seats} Plätze` : "Plätze ?"})</span>`;
+    btn.innerHTML = `${b.name} <span style="opacity:0.75; font-size:12px;">(${
+      b.seats ? `${b.seats} Plätze` : "Plätze ?"
+    })</span>`;
     btn.addEventListener("click", async () => {
       const ok = await assignBoatToSlot(b.id, currentModalSlotId);
       if (ok) renderSlotModalResults();
@@ -842,12 +1058,14 @@ function buildSlotElement(slotId, label) {
 
   const rule = slotRuleForSlot(sId);
   const selectedBoat = selectedBoatId ? boatById(selectedBoatId) : null;
-
   const isRestricted = rule !== null;
-  const isBlockedForSelection = selectedBoat && isRestricted && !canPlaceBoatInSlot(selectedBoat, sId);
+  const isBlockedForSelection =
+    selectedBoat && isRestricted && !canPlaceBoatInSlot(selectedBoat, sId);
 
   const slot = document.createElement("div");
-  slot.className = `lager-slot ${boat ? "is-full" : "is-empty"} ${isRestricted ? "is-restricted" : ""} ${isBlockedForSelection ? "is-blocked" : ""} ${!canEditBootshalle ? "is-readonly" : ""}`;
+  slot.className = `lager-slot ${boat ? "is-full" : "is-empty"} ${
+    isRestricted ? "is-restricted" : ""
+  } ${isBlockedForSelection ? "is-blocked" : ""} ${!canEditBootshalle ? "is-readonly" : ""}`;
 
   if (canEditBootshalle) {
     slot.addEventListener("dragover", (e) => e.preventDefault());
@@ -882,20 +1100,34 @@ function buildSlotElement(slotId, label) {
         ? `
           <div style="display:grid; gap:8px;">
             <div style="font-weight:700;">${boat.name}</div>
-            <div style="font-size:12px; opacity:0.8;">${boat.seats ? `${boat.seats} Plätze` : "Plätze ?"}</div>
+            <div style="font-size:12px; opacity:0.8;">${
+              boat.seats ? `${boat.seats} Plätze` : "Plätze ?"
+            }</div>
             ${commentBox}
-            ${canEditBootshalle ? `
+            ${
+              canEditBootshalle
+                ? `
               <div class="lager-slot-actions">
                 <button class="secondary">Ändern</button>
                 <button class="delete">Löschen</button>
               </div>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
         `
         : `
           <div style="display:grid; gap:8px;">
             <div style="opacity:0.75; font-size:12px; margin-top:4px;">
-              ${canEditBootshalle ? (selectedBoatId ? (isBlockedForSelection ? "Nicht passend" : "Antippen zum Einlagern") : "Klick zum Hinzufügen") : "Klick für Details"}
+              ${
+                canEditBootshalle
+                  ? selectedBoatId
+                    ? isBlockedForSelection
+                      ? "Nicht passend"
+                      : "Antippen zum Einlagern"
+                    : "Klick zum Hinzufügen"
+                  : "Klick für Details"
+              }
             </div>
             ${commentBox}
           </div>
@@ -1004,6 +1236,57 @@ function renderAll() {
   renderLayout();
 }
 
+// -------------------------------------
+// Kommentar-UI
+// -------------------------------------
+function ensureCommentUI() {
+  if (!slotModalOverlay) return;
+  if (slotCommentInput && slotCommentSaveBtn && slotCommentStatus) return;
+
+  const modalContent =
+    slotModalOverlay.querySelector(".modal-content") ||
+    slotModalOverlay.firstElementChild ||
+    slotModalOverlay;
+
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "grid";
+  wrapper.style.gap = "8px";
+  wrapper.style.margin = "14px 0";
+  wrapper.innerHTML = `
+    <div style="font-weight:700;">Kommentar zum Slot</div>
+    <textarea
+      id="slotCommentInput"
+      rows="3"
+      placeholder="Optionaler Kommentar, z. B. Defekt, reserviert, Zubehör im Boot ..."
+      style="width:100%; resize:vertical; padding:10px; border-radius:10px; border:1px solid #ccc; font:inherit;"
+    ></textarea>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button id="slotCommentSaveBtn" class="admin-btn" type="button">Kommentar speichern</button>
+      <div id="slotCommentStatus" style="font-size:12px; opacity:0.75;"></div>
+    </div>
+  `;
+
+  const resultsParent = slotResults?.parentElement;
+  if (resultsParent) resultsParent.insertBefore(wrapper, slotResults);
+  else modalContent.appendChild(wrapper);
+
+  slotCommentInput = document.getElementById("slotCommentInput");
+  slotCommentSaveBtn = document.getElementById("slotCommentSaveBtn");
+  slotCommentStatus = document.getElementById("slotCommentStatus");
+
+  slotCommentSaveBtn?.addEventListener("click", async () => {
+    if (!currentModalSlotId) return;
+    if (!canEditBootshalle) {
+      showError("Visitor können in der digitalen Bootshalle nichts ändern.", "Nur Ansicht");
+      return;
+    }
+    await saveSlotComment(currentModalSlotId, slotCommentInput?.value || "");
+  });
+}
+
+// -------------------------------------
+// Standorte
+// -------------------------------------
 function initStandorte() {
   standortSelect.innerHTML = "";
 
@@ -1023,6 +1306,9 @@ function initStandorte() {
   });
 }
 
+// -------------------------------------
+// Start
+// -------------------------------------
 ensureCommentUI();
 initStandorte();
 updateSelectedUI();
