@@ -1095,6 +1095,10 @@ export default function App() {
             Materialverlauf
           </button>
 
+          {/*<button onClick={() => window.open("/trailer.html", "_blank", "nooperner,noreferrer")}>
+            Anhängerplanung
+          </button>*/}
+
           <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
             Digitale Bootshalle
           </button>

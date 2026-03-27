@@ -1,5 +1,5 @@
 export const kategorien = ["Alle", "Boote", "Skulls", "Riemen", "Ausleger", "Hüllen", "Rollsitze", "Sonstiges"];
-export const standorte = ["BRG", "SRV", "Fühlingen", "Extern"];
+export const standorte = ["BRG", "SRV", "Fühlingen", "Trainingslager", "Regatta", "Extern"];
 
 // Schuhe Zustand als 3-Stufen-Regler
 export const SHOE_STATES = ["gut", "ok", "schlecht"];

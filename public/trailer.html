@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anhängerplanung</title>
+
+  <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js)"></script>
+  <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js)"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .page {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 16px;
+      background: #ffffff;
+      border-bottom: 1px solid #d9dee5;
+    }
+
+    .topbar select,
+    .topbar input,
+    .topbar button {
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr 320px;
+      gap: 16px;
+      padding: 16px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #d9dee5;
+      border-radius: 8px;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .search-box {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .material-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .material-card {
+      border: 1px solid #cfd6dd;
+      border-radius: 6px;
+      padding: 10px;
+      background: #fafbfc;
+      cursor: grab;
+    }
+
+    .material-card.dragging {
+      opacity: 0.5;
+    }
+
+    .material-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .material-meta {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .trailer-area {
+      background: #fff;
+      border: 1px solid #d9dee5;
+      border-radius: 8px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .trailer-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .trailer-canvas {
+      position: relative;
+      width: 100%;
+      min-height: 760px;
+      border: 2px solid #222;
+      background:
+        linear-gradient(to right, transparent 49.7%, #222 49.7%, #222 50.3%, transparent 50.3%);
+      background-color: #fff;
+    }
+
+    .slot {
+      position: absolute;
+      border: 2px solid #222;
+      background: rgba(240, 246, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6px;
+      font-size: 14px;
+      min-height: 44px;
+      overflow: hidden;
+    }
+
+    .slot.drag-over {
+      background: #d8ecff;
+      border-color: #0a66c2;
+    }
+
+    .slot-label {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-size: 12px;
+      color: #333;
+      font-weight: bold;
+    }
+
+    .slot-content {
+      padding-top: 16px;
+      width: 100%;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .slot-empty {
+      color: #888;
+      font-style: italic;
+    }
+
+    .slot-boat-name {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .slot-components {
+      font-size: 11px;
+      color: #444;
+    }
+
+    .rest-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .rest-item {
+      border: 1px solid #cfd6dd;
+      border-radius: 6px;
+      padding: 8px;
+      background: #fafbfc;
+      font-size: 14px;
+    }
+
+    .legend {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .danger-link {
+      color: #b42318;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 12px;
+      margin-top: 6px;
+      display: inline-block;
+    }
+
+    dialog {
+      border: none;
+      border-radius: 10px;
+      padding: 0;
+      width: 500px;
+      max-width: calc(100vw - 32px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    .dialog-content {
+      padding: 16px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .component-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .component-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 14px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .pdf-render-area {
+      position: fixed;
+      left: -99999px;
+      top: 0;
+      width: 1200px;
+      background: white;
+      padding: 20px;
+      color: black;
+    }
+
+    .pdf-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
+    .pdf-section {
+      margin-top: 20px;
+    }
+
+    .pdf-list {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .pdf-list th,
+    .pdf-list td {
+      border: 1px solid #444;
+      padding: 8px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .small-note {
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <label for="trailerSelect"><strong>Anhänger:</strong></label>
+      <select id="trailerSelect"></select>
+
+      <button id="btnClearTrailer">Anhänger leeren</button>
+      <button id="btnExportPdf">PDF exportieren</button>
+    </div>
+
+    <div class="layout">
+      <aside class="panel">
+        <h2>Verfügbares Material</h2>
+        <input
+          id="searchInput"
+          class="search-box"
+          type="text"
+          placeholder="Boot oder Material suchen..."
+        />
+        <div class="legend">
+          Es werden nur verfügbare Boote angezeigt. Der aktuelle Standort wird berücksichtigt.
+        </div>
+        <hr />
+        <div id="materialList" class="material-list"></div>
+      </aside>
+
+      <main class="trailer-area">
+        <div class="trailer-toolbar">
+          <div>
+            <strong id="currentTrailerName">Kein Anhänger gewählt</strong><br />
+            <span class="small-note">Boote per Drag & Drop auf einen Platz ziehen.</span>
+          </div>
+        </div>
+
+        <div id="trailerCanvas" class="trailer-canvas"></div>
+      </main>
+
+      <aside class="panel">
+        <h2>Mitgeführtes Restmaterial</h2>
+        <div class="muted">
+          Komponenten, die beim Verladen ausgewählt wurden.
+        </div>
+        <hr />
+        <div id="restMaterialList" class="rest-list"></div>
+      </aside>
+    </div>
+  </div>
+
+  <dialog id="bundleDialog">
+    <div class="dialog-content">
+      <h3>Komponenten für den Anhänger auswählen</h3>
+      <div id="bundleDialogText" class="muted"></div>
+
+      <div id="componentList" class="component-list"></div>
+
+      <div class="dialog-actions">
+        <button id="btnBundleCancel" type="button">Abbrechen</button>
+        <button id="btnBundleConfirm" type="button">Übernehmen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="pdfRenderArea" class="pdf-render-area"></div>
+
+  <script src="anhaenger-planung.js"></script>
+</body>
+</html>

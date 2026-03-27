@@ -40,6 +40,21 @@ export default function MaterialList({
     []
   );
 
+  const toggleButtonStyle = useMemo(
+    () => ({
+      padding: "4px 10px",
+      fontSize: 12,
+      borderRadius: 8,
+      cursor: "pointer",
+      color: "inherit",
+      background: "var(--toggle-btn-bg, rgba(0,0,0,0.06))",
+      border: "1px solid var(--toggle-btn-border, rgba(0,0,0,0.14))",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      transition: "background 0.15s ease, border-color 0.15s ease, transform 0.15s ease",
+    }),
+    []
+  );
+
   const groupedByStandort = useMemo(() => {
     const grouped = {};
     (material || []).forEach((item) => {
@@ -421,7 +436,15 @@ export default function MaterialList({
 
               {item.kategorie === "Boote" && item.bundle_id && canEditStandort && (
                 <button
-                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  style={{
+                    padding: "2px 8px",
+                    fontSize: 12,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    color: "inherit",
+                    background: "var(--toggle-btn-bg, rgba(0,0,0,0.06))",
+                    border: "1px solid var(--toggle-btn-border, rgba(0,0,0,0.14))",
+                  }}
                   onClick={() => addBundleToSelection(item.bundle_id)}
                   title="Boot + gesamtes Bundle auswählen"
                 >
@@ -531,7 +554,8 @@ export default function MaterialList({
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 6px", flexWrap: "wrap" }}>
                 <button
                   onClick={onToggle}
-                  style={{ padding: "2px 8px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
+                  style={toggleButtonStyle}
+                  className="toggle-btn"
                   title="Bundle auf-/zuklappen"
                 >
                   {isHeaderOpen ? "▼" : "▶"}
@@ -543,7 +567,15 @@ export default function MaterialList({
 
                 {(cat === "Skulls" || cat === "Riemen") && canEditStandort && (
                   <button
-                    style={{ padding: "2px 8px", fontSize: 12 }}
+                    style={{
+                      padding: "2px 8px",
+                      fontSize: 12,
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      color: "inherit",
+                      background: "var(--toggle-btn-bg, rgba(0,0,0,0.06))",
+                      border: "1px solid var(--toggle-btn-border, rgba(0,0,0,0.14))",
+                    }}
                     onClick={() => selectBundle(bundleKey)}
                     title="Satz auswählen"
                   >
@@ -604,7 +636,8 @@ export default function MaterialList({
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 6px", flexWrap: "wrap" }}>
                   <button
                     onClick={() => toggleAuslegerGroupOpen(bundleKey, sec.key)}
-                    style={{ padding: "2px 8px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
+                    style={toggleButtonStyle}
+                    className="toggle-btn"
                     title="Gruppe auf-/zuklappen"
                   >
                     {gOpen ? "▼" : "▶"}
@@ -648,6 +681,29 @@ export default function MaterialList({
           transform: translateY(-2px);
           background: rgba(255,255,255,0.035);
           box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+        }
+
+        .toggle-btn {
+          color: inherit;
+          background: var(--toggle-btn-bg, rgba(0,0,0,0.06)) !important;
+          border: 1px solid var(--toggle-btn-border, rgba(0,0,0,0.14)) !important;
+        }
+
+        .toggle-btn:hover {
+          background: var(--toggle-btn-bg-hover, rgba(0,0,0,0.10)) !important;
+          transform: translateY(-1px);
+        }
+
+        :root {
+          --toggle-btn-bg: rgba(0,0,0,0.06);
+          --toggle-btn-bg-hover: rgba(0,0,0,0.10);
+          --toggle-btn-border: rgba(0,0,0,0.14);
+        }
+
+        .dark {
+          --toggle-btn-bg: rgba(255,255,255,0.08);
+          --toggle-btn-bg-hover: rgba(255,255,255,0.14);
+          --toggle-btn-border: rgba(255,255,255,0.14);
         }
       `}</style>
 
@@ -860,7 +916,8 @@ export default function MaterialList({
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <button
                   onClick={() => toggleStandortOpen(standortName)}
-                  style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
+                  style={toggleButtonStyle}
+                  className="toggle-btn"
                   title="Standort auf-/zuklappen"
                 >
                   {standortOpen ? "▼" : "▶"}
@@ -903,7 +960,8 @@ export default function MaterialList({
 
                         <button
                           onClick={() => toggleCategoryOpen(standortName, cat)}
-                          style={{ padding: "2px 10px", fontSize: 12, background: "rgba(255,255,255,0.08)" }}
+                          style={toggleButtonStyle}
+                          className="toggle-btn"
                           title="Kategorie auf-/zuklappen"
                         >
                           {catOpen ? "▼" : "▶"}

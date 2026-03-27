@@ -14,8 +14,8 @@ console.log("Supabase Client erstellt:", !!supabase);
 
 const STANDORTE = [
   { id: "SRV", name: "Siegburg (SRV)" },
-  { id: "FUE", name: "Fühlingen (FUE)" },
-  { id: "BN", name: "Bonn (BN)" },
+  { id: "Fühlingen", name: "Fühlingen" },
+  { id: "BRG", name: "Bonn (BRG)" },
 ];
 
 const T_MATERIAL = "material";
@@ -137,7 +137,7 @@ const LAYOUTS = {
     ],
   },
 
-  FUE: {
+  Fühlingen: {
     title: "Digitale Bootshalle – Fühlingen",
     rows: [
       {
@@ -158,7 +158,7 @@ const LAYOUTS = {
     ],
   },
 
-  BN: {
+  BRG: {
     title: "Digitale Bootshalle – Bonn",
     rows: [
       {
