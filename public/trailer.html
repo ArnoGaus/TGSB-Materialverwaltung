@@ -1,355 +1,1460 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anhängerplanung</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anhängerplanung</title>
 
-  <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js)"></script>
-  <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js)"></script>
+    <style>
+      :root {
+        --bg: #f3f5f8;
+        --card-bg: #ffffff;
+        --text: #102033;
+        --secondary-text: #5f6b7a;
+        --primary: #0057b8;
+        --primary-soft: rgba(0, 87, 184, 0.08);
+        --danger: #c33131;
+        --border: rgba(16, 32, 51, 0.12);
+        --border-soft: rgba(16, 32, 51, 0.08);
+        --surface: rgba(16, 32, 51, 0.04);
+        --slot-bg: rgba(16, 32, 51, 0.03);
+        --slot-filled: rgba(0, 87, 184, 0.1);
+        --slot-hover: rgba(0, 87, 184, 0.15);
+        --line: rgba(16, 32, 51, 0.55);
+        --shadow: 0 14px 34px rgba(16, 32, 51, 0.1);
+        --warning-bg: rgba(255, 183, 77, 0.14);
+        --warning-border: rgba(255, 183, 77, 0.4);
+      }
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0d1623;
+          --card-bg: #162334;
+          --text: #eef4fb;
+          --secondary-text: #a7b5c5;
+          --primary: #5ba4ff;
+          --primary-soft: rgba(91, 164, 255, 0.12);
+          --danger: #ff7575;
+          --border: rgba(255, 255, 255, 0.14);
+          --border-soft: rgba(255, 255, 255, 0.1);
+          --surface: rgba(255, 255, 255, 0.05);
+          --slot-bg: rgba(255, 255, 255, 0.04);
+          --slot-filled: rgba(91, 164, 255, 0.16);
+          --slot-hover: rgba(91, 164, 255, 0.22);
+          --line: rgba(255, 255, 255, 0.58);
+          --shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+          --warning-bg: rgba(255, 183, 77, 0.1);
+          --warning-border: rgba(255, 183, 77, 0.3);
+        }
+      }
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      color: #222;
-    }
+      * {
+        box-sizing: border-box;
+      }
 
-    .page {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: radial-gradient(circle at top, rgba(0, 87, 184, 0.08), transparent 36%), var(--bg);
+        color: var(--text);
+      }
 
-    .topbar {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding: 12px 16px;
-      background: #ffffff;
-      border-bottom: 1px solid #d9dee5;
-    }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
 
-    .topbar select,
-    .topbar input,
-    .topbar button {
-      padding: 8px 10px;
-      font-size: 14px;
-    }
+      input,
+      select {
+        width: 100%;
+        margin-top: 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card-bg);
+        color: var(--text);
+      }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 320px 1fr 320px;
-      gap: 16px;
-      padding: 16px;
-      flex: 1;
-      overflow: hidden;
-    }
+      input::placeholder {
+        color: var(--secondary-text);
+      }
 
-    .panel {
-      background: #fff;
-      border: 1px solid #d9dee5;
-      border-radius: 8px;
-      padding: 12px;
-      overflow: auto;
-    }
+      button {
+        padding: 10px 14px;
+        border: none;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+      }
 
-    .panel h2 {
-      margin-top: 0;
-      font-size: 18px;
-    }
+      button.secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
 
-    .search-box {
-      width: 100%;
-      margin-bottom: 12px;
-    }
+      button.delete {
+        background: var(--danger);
+      }
 
-    .material-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
 
-    .material-card {
-      border: 1px solid #cfd6dd;
-      border-radius: 6px;
-      padding: 10px;
-      background: #fafbfc;
-      cursor: grab;
-    }
+      .anhaenger-container {
+        display: grid;
+        gap: 18px;
+        max-width: 1900px;
+        margin: 0 auto;
+        padding: 28px;
+      }
 
-    .material-card.dragging {
-      opacity: 0.5;
-    }
+      @media (max-width: 900px) {
+        .anhaenger-container {
+          padding: 16px;
+        }
+      }
 
-    .material-title {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
+      .trailer-card {
+        padding: 18px;
+        border: 1px solid var(--border-soft);
+        border-radius: 16px;
+        background: var(--card-bg);
+        box-shadow: var(--shadow);
+      }
 
-    .material-meta {
-      font-size: 12px;
-      color: #555;
-    }
+      .page-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
 
-    .trailer-area {
-      background: #fff;
-      border: 1px solid #d9dee5;
-      border-radius: 8px;
-      padding: 16px;
-      overflow: auto;
-    }
+      .page-head h1 {
+        margin: 0;
+      }
 
-    .trailer-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
+      .subtle {
+        font-size: 12px;
+        color: var(--secondary-text);
+      }
 
-    .trailer-canvas {
-      position: relative;
-      width: 100%;
-      min-height: 760px;
-      border: 2px solid #222;
-      background:
-        linear-gradient(to right, transparent 49.7%, #222 49.7%, #222 50.3%, transparent 50.3%);
-      background-color: #fff;
-    }
+      .section-title {
+        margin: 0 0 8px;
+        font-size: 18px;
+        font-weight: 900;
+      }
 
-    .slot {
-      position: absolute;
-      border: 2px solid #222;
-      background: rgba(240, 246, 255, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 6px;
-      font-size: 14px;
-      min-height: 44px;
-      overflow: hidden;
-    }
+      .app-warning {
+        padding: 10px 12px;
+        border: 1px solid var(--warning-border);
+        border-radius: 12px;
+        background: var(--warning-bg);
+        font-weight: 700;
+      }
 
-    .slot.drag-over {
-      background: #d8ecff;
-      border-color: #0a66c2;
-    }
+      .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 14px;
+        align-items: end;
+      }
 
-    .slot-label {
-      position: absolute;
-      top: 4px;
-      left: 6px;
-      font-size: 12px;
-      color: #333;
-      font-weight: bold;
-    }
+      .controls-grid .field.wide {
+        grid-column: span 2;
+      }
 
-    .slot-content {
-      padding-top: 16px;
-      width: 100%;
-      font-size: 13px;
-      line-height: 1.2;
-    }
+      .controls-grid .field.actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
 
-    .slot-empty {
-      color: #888;
-      font-style: italic;
-    }
+      @media (max-width: 1400px) {
+        .controls-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
 
-    .slot-boat-name {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
+        .controls-grid .field.wide {
+          grid-column: span 1;
+        }
+      }
 
-    .slot-components {
-      font-size: 11px;
-      color: #444;
-    }
+      @media (max-width: 760px) {
+        .controls-grid {
+          grid-template-columns: 1fr;
+        }
+      }
 
-    .rest-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+      .status-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
 
-    .rest-item {
-      border: 1px solid #cfd6dd;
-      border-radius: 6px;
-      padding: 8px;
-      background: #fafbfc;
-      font-size: 14px;
-    }
+      .status-pill {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 12px;
+        font-weight: 700;
+      }
 
-    .legend {
-      font-size: 13px;
-      color: #555;
-    }
+      .status-pill.is-error {
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+        background: color-mix(in srgb, var(--danger) 10%, var(--card-bg));
+      }
 
-    .danger-link {
-      color: #b42318;
-      cursor: pointer;
-      text-decoration: underline;
-      font-size: 12px;
-      margin-top: 6px;
-      display: inline-block;
-    }
+      .status-pill.is-success {
+        color: #17603a;
+        border-color: rgba(23, 96, 58, 0.24);
+        background: rgba(23, 96, 58, 0.08);
+      }
 
-    dialog {
-      border: none;
-      border-radius: 10px;
-      padding: 0;
-      width: 500px;
-      max-width: calc(100vw - 32px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
-    }
+      .trailer-grid {
+        display: grid;
+        grid-template-columns: 360px 1fr 420px;
+        gap: 18px;
+      }
 
-    .dialog-content {
-      padding: 16px;
-    }
+      @media (max-width: 1450px) {
+        .trailer-grid {
+          grid-template-columns: 1fr;
+        }
+      }
 
-    .dialog-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 16px;
-    }
+      .bundle-list,
+      .material-list,
+      .summary-group-list,
+      .slot-summary-list {
+        display: grid;
+        gap: 10px;
+      }
 
-    .component-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
-      max-height: 280px;
-      overflow: auto;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 10px;
-    }
+      .source-list-scroll {
+        max-height: calc(100vh - 330px);
+        overflow: auto;
+        padding-right: 4px;
+      }
 
-    .component-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      font-size: 14px;
-    }
+      .bundle-chip,
+      .material-card,
+      .summary-section,
+      .slot-summary-card {
+        padding: 5px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: transparent;
+      }
 
-    .muted {
-      color: #666;
-      font-size: 13px;
-    }
+      .bundle-chip {
+        cursor: grab;
+        user-select: none;
+      }
 
-    .pdf-render-area {
-      position: fixed;
-      left: -99999px;
-      top: 0;
-      width: 1200px;
-      background: white;
-      padding: 20px;
-      color: black;
-    }
+      .bundle-chip:hover {
+        border-color: var(--primary);
+        background: var(--primary-soft);
+      }
 
-    .pdf-title {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 16px;
-    }
+      .bundle-chip.dragging {
+        opacity: 0.5;
+      }
 
-    .pdf-section {
-      margin-top: 20px;
-    }
+      .bundle-title {
+        margin-bottom: 4px;
+        font-weight: 800;
+      }
 
-    .pdf-list {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 10px;
-    }
+      .bundle-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+      }
 
-    .pdf-list th,
-    .pdf-list td {
-      border: 1px solid #444;
-      padding: 8px;
-      text-align: left;
-      font-size: 13px;
-    }
+      .info-btn {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1;
+      }
 
-    .small-note {
-      font-size: 12px;
-      color: #666;
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="topbar">
-      <label for="trailerSelect"><strong>Anhänger:</strong></label>
-      <select id="trailerSelect"></select>
+      .bundle-meta,
+      .summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
 
-      <button id="btnClearTrailer">Anhänger leeren</button>
-      <button id="btnExportPdf">PDF exportieren</button>
-    </div>
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border: 1px solid var(--border-soft);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 11px;
+        font-weight: 700;
+      }
 
-    <div class="layout">
-      <aside class="panel">
-        <h2>Verfügbares Material</h2>
-        <input
-          id="searchInput"
-          class="search-box"
-          type="text"
-          placeholder="Boot oder Material suchen..."
-        />
-        <div class="legend">
-          Es werden nur verfügbare Boote angezeigt. Der aktuelle Standort wird berücksichtigt.
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 12px 0;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .legend-box {
+        width: 14px;
+        height: 14px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--slot-bg);
+      }
+
+      .legend-box.filled {
+        background: var(--slot-filled);
+      }
+
+      .legend-box.hang {
+        width: 22px;
+        height: 10px;
+      }
+
+      .empty-state {
+        padding: 14px;
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        color: var(--secondary-text);
+      }
+
+      .trailer-wrap {
+        overflow: auto;
+        padding-bottom: 8px;
+      }
+
+      .trailer-canvas {
+        min-width: 1040px;
+        padding: 42px 24px 8px;
+      }
+
+      .trailer-frame {
+        position: relative;
+        width: 900px;
+        margin: 0 auto;
+        padding-bottom: 6px;
+      }
+
+      .material-box-inline {
+        width: 900px;
+        margin: 8px auto 0;
+      }
+
+      .material-box-shell {
+        margin-top: 8px;
+      }
+
+      .material-box-shell .summary-section {
+        padding: 8px 10px;
+      }
+
+      .material-box-columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      @media (max-width: 1100px) {
+        .material-box-columns {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .material-box-group {
+        padding: 8px 10px;
+      }
+
+      .material-box-group h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      .material-box-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .material-box-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 1px solid var(--border-soft);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+
+      .material-box-item strong {
+        display: block;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .material-box-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+
+      .material-box-item .info-btn,
+      .material-box-item .secondary {
+        padding: 4px 7px;
+        font-size: 11px;
+      }
+
+      .trailer-side {
+        position: absolute;
+        top: 54px;
+        bottom: 62px;
+        width: 3px;
+        border-radius: 999px;
+        background: var(--line);
+        z-index: 1;
+      }
+
+      .trailer-side.left {
+        left: 0;
+      }
+
+      .trailer-side.right {
+        right: 0;
+      }
+
+      .rack {
+        position: relative;
+        width: 900px;
+        margin: 0 auto;
+      }
+
+      .rack.top-rack {
+        height: 114px;
+        margin-bottom: 30px;
+      }
+
+      .rack.with-hang,
+      .rack.bottom-rack {
+        height: 144px;
+      }
+
+      .rack-line {
+        position: absolute;
+        top: 54px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--line);
+        z-index: 1;
+      }
+
+      .rack-main-row {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        z-index: 3;
+      }
+
+      .rack-slot-wrap.main {
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .rack-slot-wrap.main .slot.main-slot {
+        width: 100%;
+        margin-top: 54px;
+        transform: translateY(-100%);
+      }
+
+      .rack-hang-row {
+        position: absolute;
+        top: -45px;
+        left: 0px;
+        right: 0px;
+        height: 0;
+        z-index: 4;
+      }
+
+      .rack-slot-wrap.hang {
+        position: absolute;
+        top: 0;
+        transform: translate(-50%, -100%);
+      }
+
+      .hang-pos-1 {
+        left: 25%;
+      }
+
+      .hang-pos-2 {
+        left: 50%;
+      }
+
+      .hang-pos-3 {
+        left: 75%;
+      }
+
+      .slot {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+        border: 1px dashed rgba(16, 32, 51, 0.24);
+        border-radius: 12px;
+        background: var(--slot-bg);
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .slot {
+          border-color: rgba(255, 255, 255, 0.22);
+        }
+      }
+
+      .slot.drag-over {
+        border-color: var(--primary);
+        background: var(--slot-hover);
+      }
+
+      .slot.filled {
+        border-style: solid;
+        background: var(--slot-filled);
+      }
+
+      .slot.selected {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      .slot.main-slot {
+        min-height: 84px;
+        height: 84px;
+      }
+
+      .slot.hang-slot {
+        width: 120px;
+        min-height: 42px;
+        height: 42px;
+        padding: 6px 10px;
+      }
+
+      .slot-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .slot-label {
+        font-weight: 900;
+      }
+
+      .slot-content {
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .slot-name-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .slot-boat-name {
+        font-weight: 700;
+      }
+
+      .slot-boat-type {
+        margin-top: 2px;
+      }
+
+      .slot-role-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.24);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .slot-empty {
+        color: var(--secondary-text);
+        font-style: italic;
+      }
+
+      .slot-actions {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .slot-actions .remove-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+        line-height: 1;
+        flex: 0 0 auto;
+      }
+
+      .details-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .details-section h3,
+      .summary-section h3 {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .details-section,
+      .summary-section {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .summary-section ul,
+      .slot-summary-card ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .print-hint {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        font-size: 12px;
+      }
+
+      dialog {
+        width: min(540px, 92vw);
+        padding: 0;
+        border: none;
+        border-radius: 14px;
+        background: var(--card-bg);
+        color: var(--text);
+        box-shadow: var(--shadow);
+      }
+
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.55);
+      }
+
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: 16px;
+      }
+
+      .modal-header {
+        border-bottom: 1px solid var(--border-soft);
+      }
+
+      .modal-body {
+        display: grid;
+        gap: 10px;
+      }
+
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+
+      #bundleDialog,
+      #materialBundleDialog {
+        width: min(650px, 94vw);
+        border-radius: 0;
+        background: #1f2a3d;
+        color: #f5f7fb;
+      }
+
+      #bundleDialog .modal-header,
+      #bundleDialog .modal-body,
+      #bundleDialog .modal-footer,
+      #materialBundleDialog .modal-header,
+      #materialBundleDialog .modal-body,
+      #materialBundleDialog .modal-footer {
+        padding-left: 28px;
+        padding-right: 28px;
+      }
+
+      #bundleDialog .modal-header,
+      #materialBundleDialog .modal-header {
+        border-bottom: none;
+        padding-top: 22px;
+        padding-bottom: 6px;
+      }
+
+      #bundleDialog .modal-body,
+      #materialBundleDialog .modal-body {
+        gap: 14px;
+        padding-top: 6px;
+        padding-bottom: 18px;
+      }
+
+      #bundleDialog .modal-footer,
+      #materialBundleDialog .modal-footer {
+        border-top: none;
+        padding-top: 0;
+        padding-bottom: 18px;
+      }
+
+      #bundleDialog .check-row {
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 12px;
+      }
+
+      #bundleDialog .check-row input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        accent-color: #4a90ff;
+        flex: 0 0 auto;
+      }
+
+      #bundleDialog .check-row span {
+        flex: 0 1 auto;
+      }
+
+      #bundleDialog button.secondary,
+      #materialBundleDialog button.secondary {
+        background: #94a3b8;
+        border: none;
+        color: #fff;
+      }
+
+      #bundleDialogHint,
+      #bundleDialogInfo,
+      #materialBundleDialogInfo {
+        color: rgba(245, 247, 251, 0.82);
+      }
+
+      #materialBundleDialog .material-list {
+        gap: 10px;
+      }
+
+      #materialBundleDialog .select-all-row {
+        margin-bottom: 2px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      #materialBundleDialog .check-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      #materialBundleDialog .check-row input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        accent-color: #4a90ff;
+      }
+
+      .material-bundle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+      }
+
+      .material-bundle-copy {
+        min-width: 0;
+      }
+
+      .material-bundle-copy strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.2;
+      }
+
+      .material-bundle-copy .subtle {
+        margin-top: 4px;
+        color: rgba(245, 247, 251, 0.78);
+      }
+
+      .selection-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .selection-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: start;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .selection-row input[type="checkbox"] {
+        width: auto;
+        margin-top: 2px;
+      }
+
+      .selection-copy strong {
+        display: block;
+      }
+
+      .selection-copy .subtle {
+        margin-top: 4px;
+      }
+
+      .paywall-price {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 900;
+      }
+
+      .paywall-list {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .print-export {
+        display: none;
+      }
+
+      .export-sheet {
+        border: 1px solid #cfd6df;
+        border-radius: 14px;
+        background: #fff;
+        padding: 18px;
+      }
+
+      .export-sheet h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .export-schema-table,
+      .export-material-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .export-schema-wrap {
+        display: grid;
+        gap: 0;
+      }
+
+      .export-schema-rack {
+        position: relative;
+        padding-top: 32px;
+      }
+
+      .export-schema-rack.top-only {
+        padding-top: 0;
+      }
+
+      .export-main-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+      }
+
+      .export-hang-grid {
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 32px;
+      }
+
+      .export-hang-slot {
+        position: absolute;
+        top: 0;
+        width: 17%;
+        transform: translateX(-50%);
+      }
+
+      .export-hang-slot.two-hang {
+        width: 18%;
+      }
+
+      .export-schema-slot {
+        min-height: 54px;
+        padding: 6px 8px;
+        border: 1px solid #1f1f1f;
+        background: #fff;
+      }
+
+      .export-schema-slot.hang {
+        min-height: 32px;
+      }
+
+      .export-schema-table td,
+      .export-material-table th,
+      .export-material-table td {
+        border: 1px solid #1f1f1f;
+      }
+
+      .export-schema-table td {
+        height: 58px;
+        padding: 6px 8px;
+        vertical-align: top;
+        background: #fff;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .export-hang-cell {
+        height: 42px !important;
+        text-align: center;
+      }
+
+      .export-empty-cell {
+        border: none !important;
+        background: transparent !important;
+      }
+
+      .export-slot-label {
+        font-weight: 700;
+        font-size: 12px;
+      }
+
+      .export-slot-fill {
+        min-height: 100%;
+        margin: -6px -8px;
+        padding: 6px 8px;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .export-slot-boat {
+        margin-top: 6px;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .export-slot-fill.seat-1 {
+        background: #fef3c7;
+      }
+
+      .export-slot-fill.seat-2 {
+        background: #dbeafe;
+      }
+
+      .export-slot-fill.seat-4 {
+        background: #dcfce7;
+      }
+
+      .export-slot-fill.seat-8 {
+        background: #fce7f3;
+      }
+
+      .export-slot-fill.seat-unknown,
+      .export-slot-fill.seat-3,
+      .export-slot-fill.seat-5,
+      .export-slot-fill.seat-6,
+      .export-slot-fill.seat-7,
+      .export-slot-fill.seat-9 {
+        background: #eef2f7;
+      }
+
+      .export-schema-table td.seat-1 {
+        background: #fef3c7;
+      }
+
+      .export-schema-table td.seat-2 {
+        background: #dbeafe;
+      }
+
+      .export-schema-table td.seat-4 {
+        background: #dcfce7;
+      }
+
+      .export-schema-table td.seat-8 {
+        background: #fce7f3;
+      }
+
+      .export-schema-table td.seat-unknown,
+      .export-schema-table td.seat-3,
+      .export-schema-table td.seat-5,
+      .export-schema-table td.seat-6,
+      .export-schema-table td.seat-7,
+      .export-schema-table td.seat-9 {
+        background: #eef2f7;
+      }
+
+      .export-material-table th,
+      .export-material-table td {
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 12px;
+      }
+
+      .export-material-table th {
+        background: #eef3f8;
+      }
+
+      .export-material-table ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .export-material-table li + li {
+        margin-top: 4px;
+      }
+
+      .export-stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .print-header {
+        display: none !important;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          color: #000;
+        }
+
+        .anhaenger-container {
+          max-width: none;
+          padding: 0;
+        }
+
+        .page-head,
+        .status-strip,
+        .page-head button,
+        .controls-grid,
+        .app-warning,
+        .print-hint,
+        dialog,
+        .trailer-grid {
+          display: none !important;
+        }
+
+        .trailer-card {
+          box-shadow: none;
+          border: 1px solid #d0d7e2;
+          break-inside: avoid;
+          padding: 14px;
+        }
+
+        .print-export {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="anhaenger-container">
+      <div class="trailer-card">
+        <div class="print-header">
+          <h1 id="printTitle" style="margin: 0 0 6px">Anhängerplanung</h1>
+          <div id="printMeta" class="subtle"></div>
         </div>
-        <hr />
-        <div id="materialList" class="material-list"></div>
-      </aside>
 
-      <main class="trailer-area">
-        <div class="trailer-toolbar">
-          <div>
-            <strong id="currentTrailerName">Kein Anhänger gewählt</strong><br />
-            <span class="small-note">Boote per Drag & Drop auf einen Platz ziehen.</span>
+        <div id="printExport" class="print-export">
+          <div class="export-stack">
+            <section class="export-sheet">
+              <h2>Anhängerschema</h2>
+              <div id="printSchemaTable"></div>
+            </section>
+            <section class="export-sheet">
+              <h2>Materialübersicht</h2>
+              <div id="printMaterialTable"></div>
+            </section>
           </div>
         </div>
 
-        <div id="trailerCanvas" class="trailer-canvas"></div>
-      </main>
+        <div class="page-head">
+          <div>
+            <h1>Anhängerplanung</h1>
+            <!--<div class="subtle">Supabase-Daten, Trailer-Schema und druckbarer Export für belegte Anhänger.</div>-->
+          </div>
 
-      <aside class="panel">
-        <h2>Mitgeführtes Restmaterial</h2>
-        <div class="muted">
-          Komponenten, die beim Verladen ausgewählt wurden.
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button id="reloadBtn" class="secondary">Neu laden</button>
+            <button id="assignStandortBtn" class="secondary">Anhänger als Standort setzen</button>
+            <button id="unloadTrailerBtn" class="secondary">Anhänger abladen</button>
+            <button id="exportPdfBtn">PDF exportieren</button>
+            <button class="secondary" onclick="window.close()">Fenster schließen</button>
+          </div>
         </div>
-        <hr />
-        <div id="restMaterialList" class="rest-list"></div>
-      </aside>
-    </div>
-  </div>
 
-  <dialog id="bundleDialog">
-    <div class="dialog-content">
-      <h3>Komponenten für den Anhänger auswählen</h3>
-      <div id="bundleDialogText" class="muted"></div>
+        <!--<div class="app-warning">Boote werden im Schema geplant. Zugehörige Materialien werden aus Supabase geladen und gruppiert aufgeführt.</div>-->
 
-      <div id="componentList" class="component-list"></div>
+        <div class="controls-grid" style="margin-top: 16px">
+          <div class="field">
+            <div class="subtle">Anhänger</div>
+            <select id="trailerSelect"></select>
+          </div>
 
-      <div class="dialog-actions">
-        <button id="btnBundleCancel" type="button">Abbrechen</button>
-        <button id="btnBundleConfirm" type="button">Übernehmen</button>
+          <div class="field wide">
+            <div class="subtle">Zweck</div>
+            <input id="trailerPurpose" placeholder="z. B. Regatta Essen, Trainingslager, Reserve" />
+          </div>
+
+          <div class="field wide">
+            <div class="subtle">Suche Material</div>
+            <input id="bundleSearch" placeholder="Name, Typ oder Nummer..." />
+          </div>
+
+          <div class="field">
+            <div class="subtle">Standort-Filter</div>
+            <select id="sourceStandortFilter">
+              <option value="">Alle</option>
+              <option value="BRG">BRG</option>
+              <option value="SRV">SRV</option>
+              <option value="Fühlingen">Fühlingen</option>
+              <option value="Trainingslager">Trainingslager</option>
+              <option value="Regatta">Regatta</option>
+              <option value="Extern">Extern</option>
+            </select>
+          </div>
+
+          <div class="field actions">
+            <button id="clearTrailerBtn" class="delete">Anhänger leeren</button>
+          </div>
+        </div>
+
+        <div class="status-strip">
+          <div class="status-pill" id="statusText">Lade Daten...</div>
+          <div class="status-pill" id="trailerMetaText">Noch kein Anhänger ausgewählt</div>
+        </div>
+
+        <!--<div class="print-hint">
+          Der PDF-Export nutzt die Druckansicht deines Browsers. Im Dialog einfach "Als PDF speichern" wählen.
+        </div>-->
+      </div>
+
+      <div class="trailer-grid">
+        <div class="trailer-card">
+          <div class="section-title">Materialliste</div>
+          <div class="subtle">Alle Boote sowie Skull- und Riemen-Sätze über ausklappbare Bereiche.</div>
+          <div class="source-list-scroll" style="margin-top: 12px">
+            <div id="bundleList" class="bundle-list"></div>
+          </div>
+        </div>
+
+        <div class="trailer-card">
+          <div class="section-title">Anhänger-Schema</div>
+          <div class="subtle">Boote per Drag & Drop auf einen Platz ziehen.</div>
+
+          <div class="legend">
+            <div class="legend-item"><span class="legend-box"></span> leerer Slot</div>
+            <div class="legend-item"><span class="legend-box filled"></span> belegter Slot</div>
+            <div class="legend-item"><span class="legend-box hang"></span> Hänge-Slot</div>
+          </div>
+
+          <div id="trailerContainer" class="trailer-wrap"></div>
+
+          <div style="margin-top: -2px; padding-top: 0;" hidden>
+            <div class="section-title" style="font-size: 16px">Materialbox</div>
+            <div class="subtle">Alles außer Boote hier hineinziehen, auch Material aus verschobenen Bundles.</div>
+            <div id="materialBox" class="summary-section" style="margin-top: 10px"></div>
+          </div>
+        </div>
+
+        <div class="trailer-card">
+          <div class="section-title">Geplantes Material</div>
+          <div class="subtle">Slot-Details und Materiallisten für den aktuell ausgewählten Anhänger.</div>
+
+          <div class="details-stack" style="margin-top: 12px">
+            <div id="slotDetailsPanel"></div>
+            <div id="trailerSummaryPanel"></div>
+          </div>
+        </div>
       </div>
     </div>
-  </dialog>
 
-  <div id="pdfRenderArea" class="pdf-render-area"></div>
+    <dialog id="bundleDialog">
+      <div class="modal-header">
+        <h3 id="bundleDialogTitle" style="margin: 0">Boot verschieben</h3>
+      </div>
 
-  <script src="anhaenger-planung.js"></script>
-</body>
+      <div class="modal-body">
+        <div class="subtle" id="bundleDialogInfo"></div>
+        <div class="subtle" id="bundleDialogHint"></div>
+
+        <label class="check-row">
+          <input type="checkbox" checked disabled />
+          <span>Boot</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="includeSkulls" checked />
+          <span>Skullausleger (alle Plätze)</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="includeSweep" checked />
+          <span>Riemenausleger (alle Plätze)</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="includeSeats" checked />
+          <span>Rollsitze (alle Plätze)</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="includeCover" checked />
+          <span>Hülle</span>
+        </label>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelBundleDialog" class="secondary">Abbrechen</button>
+        <button id="confirmBundleDialog">Verschieben</button>
+      </div>
+    </dialog>
+
+    <dialog id="slotDialog">
+      <div class="modal-header">
+        <h3 id="slotDialogTitle" style="margin: 0">Slot bearbeiten</h3>
+      </div>
+
+      <div class="modal-body">
+        <div class="subtle">Boot direkt auswählen oder einen Kommentar zum Feld hinterlegen.</div>
+        <label>
+          <div class="subtle">Kommentar</div>
+          <input id="slotCommentInput" placeholder="z. B. reserviert, Reihenfolge beachten, defekt" />
+        </label>
+
+        <label>
+          <div class="subtle">Boot suchen</div>
+          <input id="slotSearchInput" placeholder="Bootsname oder Nummer..." />
+        </label>
+
+        <div id="slotCurrentInfo"></div>
+        <div id="slotBoatResults" class="bundle-list"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="removeSlotBoatBtn" class="delete" style="margin-right: auto;">Boot entfernen</button>
+        <button id="cancelSlotDialog" class="secondary">Schließen</button>
+        <button id="saveSlotDialog">Speichern</button>
+      </div>
+    </dialog>
+
+    <dialog id="assignStandortDialog">
+      <div class="modal-header">
+        <h3 style="margin: 0">Anhänger-Inhalt verschieben</h3>
+      </div>
+
+      <div class="modal-body">
+        <div class="subtle">Der komplette Inhalt des Anhängers wird einem neuen Standort zugeordnet.</div>
+        <label>
+          <div class="subtle">Neuer Standort</div>
+          <select id="assignStandortSelect">
+            <option value="BRG">BRG</option>
+            <option value="SRV">SRV</option>
+            <option value="Fühlingen">Fühlingen</option>
+            <option value="Trainingslager">Trainingslager</option>
+            <option value="Regatta">Regatta</option>
+            <option value="Extern">Extern</option>
+          </select>
+        </label>
+        <div id="assignStandortInfo" class="empty-state"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelAssignStandort" class="secondary">Abbrechen</button>
+        <button id="confirmAssignStandort">Weiter</button>
+      </div>
+    </dialog>
+
+    <dialog id="bulkConfirmDialog">
+      <div class="modal-header">
+        <h3 style="margin: 0">Standortwechsel bestätigen</h3>
+      </div>
+
+      <div class="modal-body">
+        <div id="bulkConfirmIntro" class="subtle"></div>
+        <div id="bulkConfirmList" class="summary-group-list"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="editBulkConfirm" class="secondary" style="margin-right: auto;">Material ändern</button>
+        <button id="cancelBulkConfirm" class="secondary">Abbrechen</button>
+        <button id="applyBulkConfirm">Bestätigen</button>
+      </div>
+    </dialog>
+
+    <dialog id="paywallDialog">
+      <div class="modal-header">
+        <h3 id="paywallTitle" style="margin: 0">Trailer-Tool erweitern</h3>
+      </div>
+
+      <div class="modal-body">
+        <div id="paywallMessage" class="subtle">
+          In der kostenlosen Version können bis zu 5 Boote geplant werden. Für unbegrenzte Planung kannst du das Tool freischalten.
+        </div>
+        <div class="paywall-price">9,99 EUR einmalig</div>
+        <ul class="paywall-list">
+          <li>unbegrenzte Anzahl Boote im Anhänger-Tool</li>
+          <li>Freischaltung direkt für dein Benutzerprofil</li>
+          <li>Weiterleitung zu PayPal und automatische Aktivierung nach Kauf</li>
+        </ul>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closePaywallDialog" class="secondary">Später</button>
+        <button id="startPaypalCheckout">Mit PayPal freischalten</button>
+      </div>
+    </dialog>
+
+    <dialog id="unloadDialog">
+      <div class="modal-header">
+        <h3 id="unloadDialogTitle" style="margin: 0">Anhänger abladen</h3>
+      </div>
+
+      <div class="modal-body">
+        <div class="subtle">Wähle Material aus dem Anhänger aus und ordne es einem festen Standort zu.</div>
+        <label>
+          <div class="subtle">Ziel-Standort</div>
+          <select id="unloadStandortSelect">
+            <option value="BRG">BRG</option>
+            <option value="SRV">SRV</option>
+            <option value="Fühlingen">Fühlingen</option>
+            <option value="Extern">Extern</option>
+          </select>
+        </label>
+        <label class="selection-row">
+          <input type="checkbox" id="unloadSelectAll" checked />
+          <div class="selection-copy">
+            <strong>Alle auswählen</strong>
+          </div>
+        </label>
+        <div id="unloadSelectionList" class="selection-list"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelUnloadDialog" class="secondary">Abbrechen</button>
+        <button id="confirmUnloadDialog">Weiter zur Bestätigung</button>
+      </div>
+    </dialog>
+
+    <dialog id="materialInfoDialog">
+      <div class="modal-header">
+        <h3 id="materialInfoTitle" style="margin: 0">Materialinfo</h3>
+      </div>
+
+      <div class="modal-body">
+        <div id="materialInfoMeta" class="subtle"></div>
+        <div id="materialInfoContent" class="details-stack"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closeMaterialInfo" class="secondary">Schließen</button>
+      </div>
+    </dialog>
+
+    <dialog id="materialBundleDialog">
+      <div class="modal-header">
+        <h3 id="materialBundleDialogTitle" style="margin: 0">Material aus Bundle wählen</h3>
+      </div>
+
+      <div class="modal-body">
+        <div id="materialBundleDialogInfo" class="subtle"></div>
+        <label class="check-row select-all-row">
+          <input type="checkbox" id="materialBundleSelectAll" checked />
+          <span class="material-bundle-row">
+            <span class="material-bundle-copy">
+              <strong>Alle auswählen</strong>
+            </span>
+          </span>
+        </label>
+        <div id="materialBundleDialogList" class="material-list"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelMaterialBundleDialog" class="secondary">Abbrechen</button>
+        <button id="confirmMaterialBundleDialog">Übernehmen</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/trailer.js"></script>
+  </body>
 </html>

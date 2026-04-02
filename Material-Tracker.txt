@@ -1,0 +1,66 @@
+Supabase:
+Projekt-PW: TGSBMaterial20.03
+
+Projekt-URL: https://tgsb-materialverwaltung.vercel.app/
+-----------------------------------------------------------------------------------
+Anmeldedaten:
+
+Arno: 	Email: 	arnogaus@t-online.de
+(Admin)	PW:
+Arno: 	Email: 	arnogaus@gmail.com
+	PW:	a14052002.
+Charly: Email:	charly1305@gmx.de
+	PW:	aG7kP2
+Heiner: Email:	heinerschwartz@siegburger-ruderverein.de
+	PW: 	ArnoistderBeste1
+Clemens: Email: c.hundhausen@siegburger-ruderverein.de
+	PW:	aG7mQ2t
+Thomas: Email: 	thomas.quirrenbach@t-online.de
+	PW: 	fKraZem2!
+Peter: 	Email: 	p.finkel@gmx.net
+	PW: 	Raveloq5#
+Martin: Email: 	maguenther1@web.de
+	PW: 	mLefaZor3!
+Ben:	Email:	gs@stromflut.de
+	PW: 	Lunavek4!
+TGSB:	Email:  info.tgsb.material@gmail.com
+	PW:	tgsb.material.login
+Benni: 	Email: 	jugendwart@siegburger-ruderverein.de
+	PW:	Qm7!Ra2
+Yannick:Email: 	yannickdoerr@gmx.com
+	PW:	1234567890
+Julius: Email: 	lingnau.julius@web.de
+	PW: 	G5k!2Lp
+
+----------------------------------------------------------------------------------
+Gmail: 	Email: info.tgsb.material@gmail.com
+	PW: info.tgsb.material1!
+Paypal: pa7seth!45B
+--------------------------------------------------------------------------------------
+Visitor: Standortansicht: keine Änderungen des Standortes möglich, keine Änderungen der Materialdetails möglich
+	 Tabelle: Keine Änderungen möglich,
+	 Bootshalle: keine Änderungen möglich
+User: 	 Änderungen des Standortes und der Details möglich, keine Änderung der Materialnamenmöglich, Änderungen in der digitalen Bootshalle möglich sowie in der Tabellarischen Ansicht über den bearbeitungsmodus, kein löschen von material möglich
+Admin:  alle Änderungen und löschen möglich + Einblick in eine weitere Seite(Materialverlauf) in der alle Änderungen tabellarisch aufgeführt werden und für den Admin nachvollziebar sind
+
+-----------------------------------------------------------------------------------
+-User: soll in der Bootshalle keine Boote verschieben können und kann kein Material hinzufügen
+-In der online-Version, Statistik kann nicht auf Schema.js zugreifen, aber nur eine Schema.js Datei sinnvoll
+-Überschrift mit den Buttons für Digitale Bootshalle, Statistik, Tabelle und Materialverlauf organisieren
+-Im Materialverlauf und Supabase das Abrufen aller Änderungsdaten möglich machen
+-----------------------------------------------------------------------------------
+
+
+
+
+
+const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6bmVheWZqcHZjZnBkYXF6ZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODM4NDUsImV4cCI6MjA4NzE1OTg0NX0.v5NJARFQuotDrgLZZkJ2p228s6LCWTIF-QRmyZIoTbs";
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Supabase URL oder Anon Key fehlt.");
+}
+
+
+---------------------------------------------

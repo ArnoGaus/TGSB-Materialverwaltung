@@ -1095,9 +1095,9 @@ export default function App() {
             Materialverlauf
           </button>
 
-          {/*<button onClick={() => window.open("/trailer.html", "_blank", "nooperner,noreferrer")}>
+          <button onClick={() => window.open("/trailer.html", "_blank","noopener,noreferrer")}>
             Anhängerplanung
-          </button>*/}
+          </button>
 
           <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
             Digitale Bootshalle
