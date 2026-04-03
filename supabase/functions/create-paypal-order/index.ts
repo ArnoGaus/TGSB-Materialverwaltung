@@ -14,6 +14,15 @@ const paypalClientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET") ?? "";
 const paypalEnv = (Deno.env.get("PAYPAL_ENV") ?? "live").toLowerCase();
 const paypalBaseUrl = paypalEnv === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
 
+function extractBearerToken(authHeader: string | null) {
+  if (!authHeader) {
+    return "";
+  }
+
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || "";
+}
+
 async function getPaypalAccessToken() {
   const encoded = btoa(`${paypalClientId}:${paypalClientSecret}`);
   const response = await fetch(`${paypalBaseUrl}/v1/oauth2/token`, {
@@ -40,18 +49,17 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const accessToken = extractBearerToken(authHeader);
+    if (!accessToken) {
       throw new Error("Nicht authentifiziert.");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser(accessToken);
 
     if (userError || !user) {
       throw new Error("Benutzer konnte nicht geladen werden.");
@@ -66,11 +74,11 @@ serve(async (req) => {
       throw new Error("Return- oder Cancel-URL fehlt.");
     }
 
-    const accessToken = await getPaypalAccessToken();
+    const paypalAccessToken = await getPaypalAccessToken();
     const response = await fetch(`${paypalBaseUrl}/v2/checkout/orders`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${paypalAccessToken}`,
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },

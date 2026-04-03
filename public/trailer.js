@@ -22,6 +22,7 @@ const TRAILER_PRESETS = [
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.trailerSupabase = supabase;
 
 const bundleListEl = document.getElementById("bundleList");
 const trailerSelectEl = document.getElementById("trailerSelect");
@@ -781,6 +782,58 @@ function getCurrentTrailerItemIdSet() {
 
 function isTrailerUpgradeUnlocked() {
   return !!currentProfile?.trailer_tool_unlocked;
+}
+
+async function getAuthenticatedSession() {
+  const {
+    data: { session: initialSession },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  if (!initialSession) {
+    return null;
+  }
+
+  let session = initialSession;
+  const expiresAt = Number(session.expires_at || 0) * 1000;
+  const shouldRefresh = !session.access_token || (expiresAt && expiresAt - Date.now() < 60_000);
+  if (shouldRefresh) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      throw error;
+    }
+
+    session = data?.session || null;
+  }
+
+  if (!session?.access_token) {
+    return null;
+  }
+
+  let userCheck = await supabase.auth.getUser(session.access_token);
+  if (userCheck.error) {
+    const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshedData?.session?.access_token) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      return null;
+    }
+
+    session = refreshedData.session;
+    userCheck = await supabase.auth.getUser(session.access_token);
+    if (userCheck.error) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      return null;
+    }
+  }
+
+  return {
+    ...session,
+    user: userCheck.data?.user || session.user || null,
+  };
 }
 
 function getPlacedBoatCount() {
@@ -2620,8 +2673,10 @@ function updateStatus() {
     statusTextEl.textContent = transientStatusMessage.message;
     if (transientStatusMessage.isError) {
       statusTextEl.classList.add("is-error");
+      statusTextEl.classList.remove("is-success");
     } else {
       statusTextEl.classList.remove("is-error");
+      statusTextEl.classList.add("is-success");
     }
     return;
   }
@@ -2631,17 +2686,15 @@ function updateStatus() {
 }
 
 async function loadCurrentProfile() {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    throw userError;
-  }
-
-  currentUser = user || null;
+  const session = await getAuthenticatedSession();
+  currentUser = session?.user || null;
   currentProfile = null;
+  window.trailerDebug = {
+    currentUser,
+    currentProfile,
+    sessionExpiresAt: session?.expires_at || null,
+    timestamp: new Date().toISOString(),
+  };
 
   if (!currentUser) {
     return;
@@ -2658,6 +2711,12 @@ async function loadCurrentProfile() {
   }
 
   currentProfile = profile || null;
+  window.trailerDebug = {
+    currentUser,
+    currentProfile,
+    sessionExpiresAt: session?.expires_at || null,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 async function handleCheckoutReturn() {
@@ -2684,13 +2743,12 @@ async function handleCheckoutReturn() {
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke("capture-paypal-order", {
-      body: { orderId },
-    });
-
-    if (error) {
-      throw error;
+    const session = await getAuthenticatedSession();
+    if (!session?.access_token) {
+      throw new Error("Kein gültiger Login-Token gefunden.");
     }
+
+    const data = await invokeEdgeFunction("capture-paypal-order", { orderId }, session.access_token);
 
     if (!data?.unlocked) {
       throw new Error(data?.error || "Freischaltung konnte nicht bestätigt werden.");
@@ -2706,6 +2764,54 @@ async function handleCheckoutReturn() {
   }
 }
 
+async function enrichFunctionsError(error) {
+  const context = error?.context;
+  if (!context || typeof context.text !== "function") {
+    return error;
+  }
+
+  try {
+    const raw = await context.text();
+    if (!raw) {
+      return error;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return new Error(parsed?.error || parsed?.message || raw);
+    } catch {
+      return new Error(raw);
+    }
+  } catch {
+    return error;
+  }
+}
+
+async function invokeEdgeFunction(functionName, body, accessToken) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body || {}),
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error || payload?.message || `Edge Function Fehler (${response.status})`);
+  }
+
+  return payload;
+}
+
 async function startPaypalCheckout() {
   if (!currentUser) {
     setTransientStatus("Bitte zuerst anmelden, damit die Freischaltung deinem Profil zugeordnet werden kann.", true);
@@ -2715,22 +2821,25 @@ async function startPaypalCheckout() {
 
   startPaypalCheckoutEl.disabled = true;
   try {
+    const session = await getAuthenticatedSession();
+    if (!session?.access_token) {
+      throw new Error("Kein gültiger Login-Token gefunden.");
+    }
+
     const returnUrl = new URL(window.location.href);
     returnUrl.searchParams.set("paypal_checkout", "success");
     const cancelUrl = new URL(window.location.href);
     cancelUrl.searchParams.set("paypal_checkout", "cancel");
 
-    const { data, error } = await supabase.functions.invoke("create-paypal-order", {
-      body: {
+    const data = await invokeEdgeFunction(
+      "create-paypal-order",
+      {
         returnUrl: returnUrl.toString(),
         cancelUrl: cancelUrl.toString(),
         itemName: "TGSB-Materialverwaltung Trailer-Upgrade",
       },
-    });
-
-    if (error) {
-      throw error;
-    }
+      session.access_token
+    );
 
     if (!data?.approvalUrl) {
       throw new Error(data?.error || "PayPal-Weiterleitung konnte nicht erzeugt werden.");
@@ -2821,6 +2930,22 @@ function sanitizeLocalState() {
 async function refreshAll() {
   try {
     await loadCurrentProfile();
+    if (!currentUser) {
+      transientStatusMessage = {
+        message: "Kein Supabase-Login auf der Trailer-Seite erkannt. Bitte zuerst in der Haupt-App anmelden.",
+        isError: true,
+      };
+    } else if (!isTrailerUpgradeUnlocked()) {
+      transientStatusMessage = {
+        message: `Eingeloggt als ${currentUser.email || currentUser.id}. Freie Version: bis zu ${FREE_BOAT_LIMIT} Boote.`,
+        isError: false,
+      };
+    } else {
+      transientStatusMessage = {
+        message: `Eingeloggt als ${currentUser.email || currentUser.id}. Trailer-Upgrade ist freigeschaltet.`,
+        isError: false,
+      };
+    }
     await loadMaterialData();
     await handleCheckoutReturn();
     sanitizeLocalState();
