@@ -63,6 +63,74 @@
         color: var(--text);
       }
 
+      .bootshalle-select {
+        width: 100%;
+        min-width: 260px;
+        margin-top: 10px;
+        padding: 10px 42px 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background-color: var(--card-bg);
+        color: var(--text);
+        font-weight: 700;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, currentColor 50%),
+          linear-gradient(135deg, currentColor 50%, transparent 50%);
+        background-position:
+          calc(100% - 18px) calc(50% - 3px),
+          calc(100% - 12px) calc(50% - 3px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+
+      .bootshalle-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+      }
+
+      .bootshalle-select option {
+        background: var(--card-bg);
+        color: var(--text);
+      }
+
+      .bootshalle-select[data-standort="SRV"] {
+        background-color: rgba(37, 99, 235, 0.16);
+        border-color: rgba(37, 99, 235, 0.45);
+        color: #cfe0ff;
+      }
+
+      .bootshalle-select[data-standort="BRG"] {
+        background-color: rgba(22, 163, 74, 0.16);
+        border-color: rgba(22, 163, 74, 0.45);
+        color: #d7f8e1;
+      }
+
+      .bootshalle-select[data-standort="Fühlingen"],
+      .bootshalle-select[data-standort="FÃ¼hlingen"] {
+        background-color: rgba(180, 83, 9, 0.18);
+        border-color: rgba(180, 83, 9, 0.48);
+        color: #ffe2bf;
+      }
+
+      .bootshalle-select[data-standort="Extern"] {
+        background-color: rgba(107, 114, 128, 0.18);
+        border-color: rgba(107, 114, 128, 0.42);
+        color: #e5e7eb;
+      }
+
+      @media (prefers-color-scheme: light) {
+        .bootshalle-select[data-standort="SRV"] { color: #12366f; }
+        .bootshalle-select[data-standort="BRG"] { color: #14532d; }
+        .bootshalle-select[data-standort="Fühlingen"],
+        .bootshalle-select[data-standort="FÃ¼hlingen"] { color: #7c2d12; }
+        .bootshalle-select[data-standort="Extern"] { color: #374151; }
+      }
+
       input::placeholder { color: var(--secondary-text); }
 
       button {
@@ -384,12 +452,10 @@
           <button class="secondary" onclick="window.close()">Fenster schließen</button>
         </div>
 
-        <div class="bootshalle-warning">Diese Seite befindet sich in der Bearbeitung</div>
-
         <div class="bootshalle-controls">
           <div style="min-width:260px;">
             <div class="subtle">Standort</div>
-            <select id="standortSelect"></select>
+            <select id="standortSelect" class="bootshalle-select"></select>
           </div>
 
           <div id="mobileHint" class="subtle">
@@ -463,6 +529,7 @@
       </div>
     </div>
 
+    <script src="/shared/inactivity-timeout.js"></script>
     <script type="module" src="/digitale-bootshalle.js?v=3"></script>
   </body>
 </html>

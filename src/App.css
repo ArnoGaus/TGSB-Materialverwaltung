@@ -36,11 +36,12 @@ body {
   background: var(--bg);
   color: var(--text);
   margin: 0;
+  overflow-x: hidden;
 }
 
 .container {
-  padding: 40px;
-  max-width: 1200px;
+  width: min(1600px, 100%);
+  padding: clamp(16px, 3vw, 40px);
   margin: auto;
 }
 
@@ -71,19 +72,69 @@ button.secondary {
   align-items: center;
 }
 
+.header-nav,
+.header-actions {
+  display: grid;
+  gap: 10px;
+  align-self: stretch;
+}
+
+.header-nav {
+  min-width: min(420px, 100%);
+}
+
+.header-nav-label,
+.header-actions-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary-text);
+}
+
+.header-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.header-nav-grid button,
+.header-action-row button {
+  min-height: 42px;
+}
+
+.header-actions {
+  justify-items: end;
+}
+
+.header-action-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.header-online {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
 .card,
 .material-card,
 .login-card {
   background: var(--card-bg);
-  padding: 30px;
+  padding: clamp(18px, 2.4vw, 30px);
   margin-bottom: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 12px var(--shadow);
+  overflow: hidden;
 }
 
 input,
 select,
 textarea {
+  max-width: 100%;
   padding: 8px;
   margin-right: 10px;
   margin-top: 10px;
@@ -259,6 +310,8 @@ select option {
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .header-logos {
@@ -276,6 +329,7 @@ select option {
 .header-title {
   margin: 0;
   line-height: 1.1;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
 }
 
 .role-badge {
@@ -321,5 +375,62 @@ select option {
 
   .header {
     grid-template-columns: 1fr;
+  }
+
+  .header-left {
+    align-items: flex-start;
+  }
+
+  .header-nav {
+    min-width: 0;
+  }
+
+  .header-nav-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-actions {
+    justify-items: start;
+  }
+
+  .header-action-row {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .header-logos {
+    gap: 10px;
+  }
+
+  .club-logo {
+    height: 36px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .material-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .header-nav-grid button,
+  .header-action-row button {
+    width: 100%;
+  }
+
+  .header-action-row {
+    width: 100%;
   }
 }

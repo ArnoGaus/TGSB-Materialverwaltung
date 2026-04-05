@@ -207,6 +207,14 @@ export default function App() {
     return () => sub?.subscription?.unsubscribe?.();
   }, [loadProfile]);
 
+  useEffect(() => {
+    const controller = window.MaterialTrackerInactivity?.install?.({
+      supabase,
+    });
+
+    return () => controller?.stop?.();
+  }, []);
+
   const loadHistory = useCallback(
     async (materialId) => {
       if (!permissions.canViewHistory) return;
@@ -1080,7 +1088,9 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", flexDirection: "column", alignItems: "flex-end" }}>
+        <div className="header-nav">
+          <div className="header-nav-label">Werkzeuge</div>
+          <div className="header-nav-grid">
           {permissions.canViewStatistics && (
             <button onClick={() => window.open("/statistik.html", "_blank", "noopener,noreferrer")}>
               Statistik
@@ -1091,10 +1101,6 @@ export default function App() {
             Tabelle
           </button>
 
-          <button onClick={() => window.open("/materialverlauf.html", "_blank", "noopener,noreferrer")}>
-            Materialverlauf
-          </button>
-
           <button onClick={() => window.open("/trailer.html", "_blank","noopener,noreferrer")}>
             Anhängerplanung
           </button>
@@ -1102,10 +1108,16 @@ export default function App() {
           <button onClick={() => window.open("/digitale-bootshalle.html", "_blank", "noopener,noreferrer")}>
             Digitale Bootshalle
           </button>
+
+          <button onClick={() => window.open("/materialverlauf.html", "_blank", "noopener,noreferrer")}>
+            Materialverlauf
+          </button>
+          </div>
         </div>
 
-        <div style={{ display: "grid", gap: 10, justifyItems: "end" }}>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div className="header-actions">
+          <div className="header-actions-label">Konto</div>
+          <div className="header-action-row">
             {permissions.canUseAdminPanel && (
               <button
                 className={`admin-toggle ${showAdmin ? "is-on" : ""}`}
@@ -1120,7 +1132,7 @@ export default function App() {
             </button>
           </div>
 
-          <div style={{ fontSize: 12, opacity: 0.8 }}>
+          <div className="header-online">
             Online: <strong>{onlineCount}</strong>
           </div>
         </div>

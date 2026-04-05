@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anhängerplanung</title>
+    <title>AnhÃ¤ngerplanung</title>
 
     <style>
       :root {
@@ -879,6 +879,7 @@
         margin-top: 4px;
       }
 
+      /* Deaktivierte PayPal-Erweiterung
       .paywall-price {
         display: inline-flex;
         align-items: center;
@@ -895,6 +896,7 @@
         display: grid;
         gap: 8px;
       }
+      */
 
       .print-export {
         display: none;
@@ -905,42 +907,6 @@
         border-radius: 14px;
         background: #fff;
         padding: 18px;
-      }
-
-      .export-page-header {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 14px;
-        padding: 10px 14px;
-        border: 1px solid #cfd6df;
-        border-radius: 14px;
-        background: #fff;
-      }
-
-      .export-page-header img {
-        width: 52px;
-        height: 52px;
-        object-fit: contain;
-      }
-
-      .export-page-header-copy {
-        display: grid;
-        gap: 2px;
-        text-align: center;
-      }
-
-      .export-page-header-copy h1 {
-        margin: 0;
-        font-size: 20px;
-        color: #0f172a;
-      }
-
-      .export-page-header-copy .subtle {
-        font-size: 13px;
-        color: #475569;
-        opacity: 1;
       }
 
       .export-sheet h2 {
@@ -962,7 +928,7 @@
 
       .export-schema-rack {
         position: relative;
-        padding-top: 36px;
+        padding-top: 32px;
       }
 
       .export-schema-rack.top-only {
@@ -978,7 +944,7 @@
       .export-hang-grid {
         position: absolute;
         inset: 0 0 auto 0;
-        height: 36px;
+        height: 32px;
       }
 
       .export-hang-slot {
@@ -1000,7 +966,7 @@
       }
 
       .export-schema-slot.hang {
-        min-height: 36px;
+        min-height: 32px;
       }
 
       .export-schema-table td,
@@ -1167,26 +1133,18 @@
     <div class="anhaenger-container">
       <div class="trailer-card">
         <div class="print-header">
-          <h1 id="printTitle" style="margin: 0 0 6px">Anhängerplanung</h1>
+          <h1 id="printTitle" style="margin: 0 0 6px">AnhÃ¤ngerplanung</h1>
           <div id="printMeta" class="subtle"></div>
         </div>
 
         <div id="printExport" class="print-export">
-          <section class="export-page-header">
-            <img src="/src/assets/logo_BRG.png" alt="BRG Logo" />
-            <div class="export-page-header-copy">
-              <h1 id="printExportTitle">Anhängerplanung</h1>
-              <div id="printExportMeta" class="subtle"></div>
-            </div>
-            <img src="/src/assets/logo_SRV.jpg" alt="SRV Logo" />
-          </section>
           <div class="export-stack">
             <section class="export-sheet">
-              <h2>Anhängerschema</h2>
+              <h2>AnhÃ¤ngerschema</h2>
               <div id="printSchemaTable"></div>
             </section>
             <section class="export-sheet">
-              <h2>Materialübersicht</h2>
+              <h2>MaterialÃ¼bersicht</h2>
               <div id="printMaterialTable"></div>
             </section>
           </div>
@@ -1194,24 +1152,24 @@
 
         <div class="page-head">
           <div>
-            <h1>Anhängerplanung</h1>
-            <!--<div class="subtle">Supabase-Daten, Trailer-Schema und druckbarer Export für belegte Anhänger.</div>-->
+            <h1>AnhÃ¤ngerplanung</h1>
+            <!--<div class="subtle">Supabase-Daten, Trailer-Schema und druckbarer Export fÃ¼r belegte AnhÃ¤nger.</div>-->
           </div>
 
           <div style="display: flex; gap: 10px; flex-wrap: wrap">
             <button id="reloadBtn" class="secondary">Neu laden</button>
-            <button id="assignStandortBtn" class="secondary">Anhänger als Standort setzen</button>
-            <button id="unloadTrailerBtn" class="secondary">Anhänger abladen</button>
+            <button id="assignStandortBtn" class="secondary">AnhÃ¤nger als Standort setzen</button>
+            <button id="unloadTrailerBtn" class="secondary">AnhÃ¤nger abladen</button>
             <button id="exportPdfBtn">PDF exportieren</button>
-            <button class="secondary" onclick="window.close()">Fenster schließen</button>
+            <button class="secondary" onclick="window.close()">Fenster schlieÃŸen</button>
           </div>
         </div>
 
-        <!--<div class="app-warning">Boote werden im Schema geplant. Zugehörige Materialien werden aus Supabase geladen und gruppiert aufgeführt.</div>-->
+        <!--<div class="app-warning">Boote werden im Schema geplant. ZugehÃ¶rige Materialien werden aus Supabase geladen und gruppiert aufgefÃ¼hrt.</div>-->
 
         <div class="controls-grid" style="margin-top: 16px">
           <div class="field">
-            <div class="subtle">Anhänger</div>
+            <div class="subtle">AnhÃ¤nger</div>
             <select id="trailerSelect"></select>
           </div>
 
@@ -1239,51 +1197,51 @@
           </div>
 
           <div class="field actions">
-            <button id="clearTrailerBtn" class="delete">Anhänger leeren</button>
+            <button id="clearTrailerBtn" class="delete">AnhÃ¤nger leeren</button>
           </div>
         </div>
 
         <div class="status-strip">
           <div class="status-pill" id="statusText">Lade Daten...</div>
-          <div class="status-pill" id="trailerMetaText">Noch kein Anhänger ausgewählt</div>
+          <div class="status-pill" id="trailerMetaText">Noch kein AnhÃ¤nger ausgewÃ¤hlt</div>
         </div>
 
         <!--<div class="print-hint">
-          Der PDF-Export nutzt die Druckansicht deines Browsers. Im Dialog einfach "Als PDF speichern" wählen.
+          Der PDF-Export nutzt die Druckansicht deines Browsers. Im Dialog einfach "Als PDF speichern" wÃ¤hlen.
         </div>-->
       </div>
 
       <div class="trailer-grid">
         <div class="trailer-card">
           <div class="section-title">Materialliste</div>
-          <div class="subtle">Alle Boote sowie Skull- und Riemen-Sätze über ausklappbare Bereiche.</div>
+          <div class="subtle">Alle Boote sowie Skull- und Riemen-SÃ¤tze Ã¼ber ausklappbare Bereiche.</div>
           <div class="source-list-scroll" style="margin-top: 12px">
             <div id="bundleList" class="bundle-list"></div>
           </div>
         </div>
 
         <div class="trailer-card">
-          <div class="section-title">Anhänger-Schema</div>
+          <div class="section-title">AnhÃ¤nger-Schema</div>
           <div class="subtle">Boote per Drag & Drop auf einen Platz ziehen.</div>
 
           <div class="legend">
             <div class="legend-item"><span class="legend-box"></span> leerer Slot</div>
             <div class="legend-item"><span class="legend-box filled"></span> belegter Slot</div>
-            <div class="legend-item"><span class="legend-box hang"></span> Hänge-Slot</div>
+            <div class="legend-item"><span class="legend-box hang"></span> HÃ¤nge-Slot</div>
           </div>
 
           <div id="trailerContainer" class="trailer-wrap"></div>
 
           <div style="margin-top: -2px; padding-top: 0;" hidden>
             <div class="section-title" style="font-size: 16px">Materialbox</div>
-            <div class="subtle">Alles außer Boote hier hineinziehen, auch Material aus verschobenen Bundles.</div>
+            <div class="subtle">Alles auÃŸer Boote hier hineinziehen, auch Material aus verschobenen Bundles.</div>
             <div id="materialBox" class="summary-section" style="margin-top: 10px"></div>
           </div>
         </div>
 
         <div class="trailer-card">
           <div class="section-title">Geplantes Material</div>
-          <div class="subtle">Slot-Details und Materiallisten für den aktuell ausgewählten Anhänger.</div>
+          <div class="subtle">Slot-Details und Materiallisten fÃ¼r den aktuell ausgewÃ¤hlten AnhÃ¤nger.</div>
 
           <div class="details-stack" style="margin-top: 12px">
             <div id="slotDetailsPanel"></div>
@@ -1309,22 +1267,22 @@
 
         <label class="check-row">
           <input type="checkbox" id="includeSkulls" checked />
-          <span>Skullausleger (alle Plätze)</span>
+          <span>Skullausleger (alle PlÃ¤tze)</span>
         </label>
 
         <label class="check-row">
           <input type="checkbox" id="includeSweep" checked />
-          <span>Riemenausleger (alle Plätze)</span>
+          <span>Riemenausleger (alle PlÃ¤tze)</span>
         </label>
 
         <label class="check-row">
           <input type="checkbox" id="includeSeats" checked />
-          <span>Rollsitze (alle Plätze)</span>
+          <span>Rollsitze (alle PlÃ¤tze)</span>
         </label>
 
         <label class="check-row">
           <input type="checkbox" id="includeCover" checked />
-          <span>Hülle</span>
+          <span>HÃ¼lle</span>
         </label>
       </div>
 
@@ -1344,8 +1302,7 @@
           <input id="slotSearchInput" placeholder="Bootsname oder Nummer..." />
         </label>
 
-        <div class="subtle">Boot direkt auswählen oder einen Kommentar zum Feld hinterlegen.</div>
-        <div id="unloadDialogInfo" class="subtle">WÃ¤hle Material aus dem AnhÃ¤nger aus und ordne es einem festen Standort zu.</div>
+        <div class="subtle">Boot direkt auswÃ¤hlen oder einen Kommentar zum Feld hinterlegen.</div>
         <label>
           <div class="subtle">Kommentar</div>
           <input id="slotCommentInput" placeholder="z. B. reserviert, Reihenfolge beachten, defekt" />
@@ -1357,18 +1314,18 @@
 
       <div class="modal-footer">
         <button id="removeSlotBoatBtn" class="delete" style="margin-right: auto;">Boot entfernen</button>
-        <button id="cancelSlotDialog" class="secondary">Schließen</button>
+        <button id="cancelSlotDialog" class="secondary">SchlieÃŸen</button>
         <button id="saveSlotDialog">Speichern</button>
       </div>
     </dialog>
 
     <dialog id="assignStandortDialog">
       <div class="modal-header">
-        <h3 style="margin: 0">Anhänger-Inhalt verschieben</h3>
+        <h3 style="margin: 0">AnhÃ¤nger-Inhalt verschieben</h3>
       </div>
 
       <div class="modal-body">
-        <div class="subtle">Der komplette Inhalt des Anhängers wird einem neuen Standort zugeordnet.</div>
+        <div class="subtle">Der komplette Inhalt des AnhÃ¤ngers wird einem neuen Standort zugeordnet.</div>
         <label>
           <div class="subtle">Neuer Standort</div>
           <select id="assignStandortSelect">
@@ -1391,7 +1348,7 @@
 
     <dialog id="bulkConfirmDialog">
       <div class="modal-header">
-        <h3 style="margin: 0">Standortwechsel bestätigen</h3>
+        <h3 style="margin: 0">Standortwechsel bestÃ¤tigen</h3>
       </div>
 
       <div class="modal-body">
@@ -1400,13 +1357,13 @@
       </div>
 
       <div class="modal-footer">
-        <button id="editBulkConfirm" class="secondary" style="margin-right: auto;">Material ändern</button>
+        <button id="editBulkConfirm" class="secondary" style="margin-right: auto;">Material Ã¤ndern</button>
         <button id="cancelBulkConfirm" class="secondary">Abbrechen</button>
-        <button id="applyBulkConfirm">Bestätigen</button>
+        <button id="applyBulkConfirm">BestÃ¤tigen</button>
       </div>
     </dialog>
 
-    <!-- PayPal-Upgrade ist derzeit deaktiviert und bleibt nur als Kommentar im Code erhalten.
+    <!-- Deaktivierte PayPal-Erweiterung
     <dialog id="paywallDialog">
       <div class="modal-header">
         <h3 id="paywallTitle" style="margin: 0">Trailer-Tool erweitern</h3>
@@ -1414,18 +1371,18 @@
 
       <div class="modal-body">
         <div id="paywallMessage" class="subtle">
-          In der kostenlosen Version können bis zu 5 Boote geplant werden. Für unbegrenzte Planung kannst du das Tool freischalten.
+          In der kostenlosen Version kÃ¶nnen bis zu 5 Boote geplant werden. FÃ¼r unbegrenzte Planung kannst du das Tool freischalten.
         </div>
         <div class="paywall-price">9,99 EUR einmalig</div>
         <ul class="paywall-list">
-          <li>unbegrenzte Anzahl Boote im Anhänger-Tool</li>
-          <li>Freischaltung direkt für dein Benutzerprofil</li>
+          <li>unbegrenzte Anzahl Boote im AnhÃ¤nger-Tool</li>
+          <li>Freischaltung direkt fÃ¼r dein Benutzerprofil</li>
           <li>Weiterleitung zu PayPal und automatische Aktivierung nach Kauf</li>
         </ul>
       </div>
 
       <div class="modal-footer">
-        <button id="closePaywallDialog" class="secondary">Später</button>
+        <button id="closePaywallDialog" class="secondary">SpÃ¤ter</button>
         <button id="startPaypalCheckout">Mit PayPal freischalten</button>
       </div>
     </dialog>
@@ -1433,11 +1390,11 @@
 
     <dialog id="unloadDialog">
       <div class="modal-header">
-        <h3 id="unloadDialogTitle" style="margin: 0">Anhänger abladen</h3>
+        <h3 id="unloadDialogTitle" style="margin: 0">AnhÃ¤nger abladen</h3>
       </div>
 
       <div class="modal-body">
-        <div class="subtle">Wähle Material aus dem Anhänger aus und ordne es einem festen Standort zu.</div>
+        <div id="unloadDialogInfo" class="subtle">WÃ¤hle Material aus dem AnhÃ¤nger aus und ordne es einem festen Standort zu.</div>
         <label>
           <div class="subtle">Ziel-Standort</div>
           <select id="unloadStandortSelect">
@@ -1450,7 +1407,7 @@
         <label class="selection-row">
           <input type="checkbox" id="unloadSelectAll" checked />
           <div class="selection-copy">
-            <strong>Alle auswählen</strong>
+            <strong>Alle auswÃ¤hlen</strong>
           </div>
         </label>
         <div id="unloadSelectionList" class="selection-list"></div>
@@ -1458,7 +1415,8 @@
 
       <div class="modal-footer">
         <button id="cancelUnloadDialog" class="secondary">Abbrechen</button>
-        <button id="confirmUnloadDialog">Weiter zur Bestätigung</button>
+        <button id="unloadPreviousStandorteBtn" class="secondary">An alten Standorten abladen</button>
+        <button id="confirmUnloadDialog">Weiter zur BestÃ¤tigung</button>
       </div>
     </dialog>
 
@@ -1473,13 +1431,13 @@
       </div>
 
       <div class="modal-footer">
-        <button id="closeMaterialInfo" class="secondary">Schließen</button>
+        <button id="closeMaterialInfo" class="secondary">SchlieÃŸen</button>
       </div>
     </dialog>
 
     <dialog id="materialBundleDialog">
       <div class="modal-header">
-        <h3 id="materialBundleDialogTitle" style="margin: 0">Material aus Bundle wählen</h3>
+        <h3 id="materialBundleDialogTitle" style="margin: 0">Material aus Bundle wÃ¤hlen</h3>
       </div>
 
       <div class="modal-body">
@@ -1488,7 +1446,7 @@
           <input type="checkbox" id="materialBundleSelectAll" checked />
           <span class="material-bundle-row">
             <span class="material-bundle-copy">
-              <strong>Alle auswählen</strong>
+              <strong>Alle auswÃ¤hlen</strong>
             </span>
           </span>
         </label>
@@ -1497,11 +1455,15 @@
 
       <div class="modal-footer">
         <button id="cancelMaterialBundleDialog" class="secondary">Abbrechen</button>
-        <button id="confirmMaterialBundleDialog">Übernehmen</button>
+        <button id="confirmMaterialBundleDialog">Ãœbernehmen</button>
       </div>
     </dialog>
 
-    <script src="/shared/inactivity-timeout.js"></script>
     <script type="module" src="/trailer.js"></script>
   </body>
 </html>
+
+
+
+
+

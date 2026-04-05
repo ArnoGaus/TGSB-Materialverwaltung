@@ -16,6 +16,13 @@ export default function AdminPanel({
   addSkullsSet,
   addRiemenSetPairs,
 }) {
+  const normalizeRiemenPairEntry = (entry = {}) => ({
+    unterschiedliche_seiten: !!entry?.unterschiedliche_seiten,
+    ...entry,
+    backbord: { ...(entry?.backbord || {}) },
+    steuerbord: { ...(entry?.steuerbord || {}) },
+  });
+
   const [kategorie, setKategorie] = useState("Boote");
   const [standort, setStandort] = useState("BRG");
   const [name, setName] = useState("");
@@ -123,14 +130,7 @@ export default function AdminPanel({
           });
         }
 
-        return next.map((item) => ({
-          unterschiedliche_seiten: false,
-          backbord: {},
-          steuerbord: {},
-          ...item,
-          backbord: { ...(item?.backbord || {}) },
-          steuerbord: { ...(item?.steuerbord || {}) },
-        }));
+        return next.map((item) => normalizeRiemenPairEntry(item));
       });
     }
   }, [kategorie, count]);
@@ -219,14 +219,7 @@ export default function AdminPanel({
   function setRiemenPairMetaField(pairIdx, key, val, type) {
     setRiemenPerPairDetails((prev) => {
       const next = [...prev];
-      const cur = {
-        unterschiedliche_seiten: false,
-        backbord: {},
-        steuerbord: {},
-        ...(next[pairIdx] || {}),
-        backbord: { ...(next[pairIdx]?.backbord || {}) },
-        steuerbord: { ...(next[pairIdx]?.steuerbord || {}) },
-      };
+      const cur = normalizeRiemenPairEntry(next[pairIdx]);
 
       if (val === "" || val === null || val === undefined) {
         delete cur[key];
@@ -247,14 +240,7 @@ export default function AdminPanel({
   function toggleRiemenDifferentSides(pairIdx) {
     setRiemenPerPairDetails((prev) => {
       const next = [...prev];
-      const cur = {
-        unterschiedliche_seiten: false,
-        backbord: {},
-        steuerbord: {},
-        ...(next[pairIdx] || {}),
-        backbord: { ...(next[pairIdx]?.backbord || {}) },
-        steuerbord: { ...(next[pairIdx]?.steuerbord || {}) },
-      };
+      const cur = normalizeRiemenPairEntry(next[pairIdx]);
 
       const nextValue = !cur.unterschiedliche_seiten;
       cur.unterschiedliche_seiten = nextValue;
@@ -283,14 +269,7 @@ export default function AdminPanel({
   function setRiemenSideField(pairIdx, side, key, val, type) {
     setRiemenPerPairDetails((prev) => {
       const next = [...prev];
-      const cur = {
-        unterschiedliche_seiten: false,
-        backbord: {},
-        steuerbord: {},
-        ...(next[pairIdx] || {}),
-        backbord: { ...(next[pairIdx]?.backbord || {}) },
-        steuerbord: { ...(next[pairIdx]?.steuerbord || {}) },
-      };
+      const cur = normalizeRiemenPairEntry(next[pairIdx]);
 
       const sideData = { ...(cur[side] || {}) };
 
@@ -335,14 +314,7 @@ export default function AdminPanel({
 
       if (isPair1 && isLengthKey && valueIsUsable) {
         for (let i = 1; i < next.length; i++) {
-          const t = {
-            unterschiedliche_seiten: false,
-            backbord: {},
-            steuerbord: {},
-            ...(next[i] || {}),
-            backbord: { ...(next[i]?.backbord || {}) },
-            steuerbord: { ...(next[i]?.steuerbord || {}) },
-          };
+          const t = normalizeRiemenPairEntry(next[i]);
 
           if (t.unterschiedliche_seiten) continue;
 

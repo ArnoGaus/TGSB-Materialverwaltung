@@ -1,4 +1,4 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+﻿import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://gzneayfjpvcfpdaqzevr.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -9,6 +9,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.MaterialTrackerInactivity?.install?.({
+  supabase,
+  redirectUrl: "/",
+});
 
 console.log("Supabase Client erstellt:", !!supabase);
 
@@ -69,6 +73,20 @@ let currentModalSlotId = null;
 
 let currentRole = "visitor";
 let canEditBootshalle = false;
+
+function normalizeStandortValue(value) {
+  return String(value || "")
+    .trim()
+    .replace(/Fuehlingen/gi, "Fühlingen");
+}
+
+function updateStandortSelectAppearance() {
+  if (!standortSelect) {
+    return;
+  }
+
+  standortSelect.dataset.standort = normalizeStandortValue(standortSelect.value);
+}
 
 // -------------------------------------
 // Layouts
@@ -169,7 +187,7 @@ const LAYOUTS = {
             title: "Kraftraum (2 Plätze)",
             slotPrefix: "bn-kr",
             slots: 2,
-            slotOverrides: { "bn-kr-1": 2, "bn-kr-2": 2 },
+            slotOverrides: { "bn-kr-1": "blocked", "bn-kr-2": "blocked" },
           },
         ],
       },
@@ -1298,8 +1316,10 @@ function initStandorte() {
   });
 
   standortSelect.value = standort;
+  updateStandortSelectAppearance();
   standortSelect.addEventListener("change", async (e) => {
-    standort = e.target.value;
+    standort = normalizeStandortValue(e.target.value);
+    updateStandortSelectAppearance();
     selectedBoatId = null;
     updateSelectedUI();
     await loadData();

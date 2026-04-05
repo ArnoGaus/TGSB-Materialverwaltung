@@ -7,6 +7,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/shared/inactivity-timeout.js"></script>
 
   <style>
     :root {
@@ -355,8 +356,7 @@
           <h1>Statistische Auswertung</h1>
           <div class="subtitle">
             Detaillierte Analyse des Materialbestands, der Standortverteilung, der Bootsklassen,
-            der Auslastung sowie der Bewegungen zwischen Standorten. Die Kennzahlen und Diagramme
-            aktualisieren sich direkt aus Supabase.
+            der Auslastung sowie der Bewegungen zwischen Standorten.
           </div>
         </div>
 
@@ -416,19 +416,19 @@
 
       <section class="card">
         <div class="section-title">Material nach Standort</div>
-        <div class="section-subtitle">Aktueller Bestand je Standort im System.</div>
+        <div class="section-subtitle">Aktueller Bestand je Standort.</div>
         <div class="chart-wrap small"><canvas id="standortChart"></canvas></div>
       </section>
 
       <section class="card">
         <div class="section-title">Boote nach Standort</div>
-        <div class="section-subtitle">Aktueller Bootsbestand je Standort im System.</div>
+        <div class="section-subtitle">Aktueller Bootsbestand je Standort.</div>
         <div class="chart-wrap small"><canvas id="boatsByLocationChart"></canvas></div>
       </section>
 
       <section class="card">
         <div class="section-title">Bootsklassen gesamt</div>
-        <div class="section-subtitle">Verteilung nach 1x, 2x, 4x und 8x auf Basis von <code>values.plaetze</code>.</div>
+        <div class="section-subtitle">Verteilung nach 1er, 2er, 4er und 8er.</div>
         <div class="chart-wrap small"><canvas id="boatClassChart"></canvas></div>
       </section>
     </div>
@@ -442,7 +442,7 @@
 
       <section class="card">
         <div class="section-title">Bootsklassen je Standort</div>
-        <div class="section-subtitle">Wie sich Einer, Zweier, Vierer und Achter über die Standorte verteilen.</div>
+        <div class="section-subtitle">Verteilung der Bootsklassen pro Standort.</div>
         <div class="chart-wrap"><canvas id="classByLocationChart"></canvas></div>
       </section>
     </div>
@@ -456,7 +456,7 @@
 
       <section class="card">
         <div class="section-title">Bootsklassen nach Verein</div>
-        <div class="section-subtitle">Zuordnung über <code>values.Verein</code> mit Mapping von „Bonner RG“ auf BRG und „Siegburger RV“ auf SRV.</div>
+        <div class="section-subtitle">Zuordnung der Bootesklassen zum jeweiligen Verein.</div>
         <div class="chart-wrap"><canvas id="classByClubChart"></canvas></div>
       </section>
     </div>
@@ -464,21 +464,23 @@
     <div class="grid-3">
       <section class="card">
         <div class="section-title">Altersdurchschnitt Bootspark nach Verein</div>
-        <div class="section-subtitle">Berechnet aus dem Baujahr der Boote und nach Verein über <code>values.Verein</code> gruppiert.</div>
+        <div class="section-subtitle">Berechnet aus dem Baujahr der Boote und nach Verein gruppiert.</div>
         <div class="chart-wrap small"><canvas id="avgAgeByClubChart"></canvas></div>
       </section>
 
       <section class="card">
-        <div class="section-title">Anzahl Riemen nach Verein</div>
-        <div class="section-subtitle">Erkennung aus dem Namen, gestapelt nach Farben und aufsummierter Anzahl 1 bis 5.</div>
-        <div class="chart-wrap small"><canvas id="riemenByClubChart"></canvas></div>
+        <div class="section-title">Anzahl Skulls nach Verein</div>
+        <div class="section-subtitle">Anzahl Skulls nach Satz und Verein.</div>
+        <div class="chart-wrap small"><canvas id="skullsByClubChart"></canvas></div>
       </section>
 
       <section class="card">
-        <div class="section-title">Anzahl Skulls nach Verein</div>
-        <div class="section-subtitle">Erkennung aus dem Namen, gestapelt nach Farben und aufsummierter Anzahl 1 bis 5.</div>
-        <div class="chart-wrap small"><canvas id="skullsByClubChart"></canvas></div>
+        <div class="section-title">Anzahl Riemen nach Verein</div>
+        <div class="section-subtitle">Anzahl Riemen nach Satz und Verein.</div>
+        <div class="chart-wrap small"><canvas id="riemenByClubChart"></canvas></div>
       </section>
+
+     
     </div>
 
     <div class="grid-2">
@@ -623,40 +625,67 @@
     }
 
     function parseClubColorCountFromName(name) {
-      const raw = String(name || "").trim();
-      const upper = raw.toUpperCase();
-
-      let club = null;
+      const raw = String(name || "")
+        .trim()
+        .normalize("NFC")
+        .replace(/ÃŸ/gi, "ß")
+        .replace(/Ã¼/gi, "ü")
+        .replace(/Ã¶/gi, "ö")
+        .replace(/Ã¤/gi, "ä");
+      const normalized = raw
+        .toLowerCase()
+        .replace(/weiss/g, "weiß")
+        .replace(/wei(?:ß|ãÿ|ã|ãƒå¸)/g, "weiß")
+        .replace(/gruen/g, "grün")
+        .replace(/gr(?:ün|ã¼n|ãƒâ¼n)/g, "grün");
+      const upper = normalized.toUpperCase();
+      let club = "Unbekannt";
       if (/\bBRG\b/.test(upper)) club = "BRG";
       else if (/\bSRV\b/.test(upper)) club = "SRV";
 
-      const colorMap = [
-        { key: "blau", regex: /\bblau\b/i },
-        { key: "grün", regex: /\bgrün\b|\bgruen\b/i },
-        { key: "rot", regex: /\brot\b/i },
-        { key: "gelb", regex: /\bgelb\b/i },
-        { key: "orange", regex: /\borange\b/i },
-        { key: "pink", regex: /\bpink\b/i },
-        { key: "lila", regex: /\blila\b|\bviolett\b/i },
-        { key: "schwarz", regex: /\bschwarz\b/i },
-        { key: "weiß", regex: /\bweiß\b|\bweiss\b/i },
-        { key: "grau", regex: /\bgrau\b/i },
-        { key: "braun", regex: /\bbraun\b/i },
-        { key: "rot", regex: /\brot\b/i },
+      const colorMatchers = [
+        ["blau", ["blau"]],
+        ["grün", ["grün"]],
+        ["rot", ["rot"]],
+        ["gelb", ["gelb"]],
+        ["orange", ["orange"]],
+        ["lila", ["lila", "violett"]],
+        ["schwarz", ["schwarz"]],
+        ["weiß", ["weiß"]],
+        ["grau", ["grau"]],
+        ["braun", ["braun"]],
       ];
 
-      let color = "Sonstige";
-      for (const entry of colorMap) {
-        if (entry.regex.test(raw)) {
-          color = entry.key;
-          break;
-        }
+      const colorEntry = colorMatchers.find(([, needles]) => needles.some((needle) => normalized.includes(needle)));
+      if (club === "Unbekannt" || !colorEntry) {
+        return { club: "Unbekannt", color: "unbekannt", count: 1 };
       }
 
-      // 🔥 WICHTIG: Jeder Eintrag zählt als 1 Paar
-      const count = 1;
+      return { club, color: colorEntry[0], count: 1 };
+    }
 
-      return { club, color, count };
+    function createDiagonalPattern(stroke = "#dce5f4", background = "rgba(104, 121, 147, 0.28)") {
+      const canvas = document.createElement("canvas");
+      canvas.width = 14;
+      canvas.height = 14;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return background;
+      }
+
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-2, 12);
+      ctx.lineTo(5, 5);
+      ctx.moveTo(3, 16);
+      ctx.lineTo(16, 3);
+      ctx.moveTo(9, 16);
+      ctx.lineTo(16, 9);
+      ctx.stroke();
+      return ctx.createPattern(canvas, "repeat") || background;
     }
 
     function isUnlimitedCapacity(capacityConfig) {
@@ -672,6 +701,10 @@
     }
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.MaterialTrackerInactivity?.install?.({
+      supabase: supabaseClient,
+      redirectUrl: "/",
+    });
 
     const els = {
       status: document.getElementById("status"),
@@ -858,16 +891,23 @@
       };
     }
 
+    const BOAT_CLASS_COLOR_MAP = {
+      1: "#63a4ff",
+      2: "#48d597",
+      4: "#ffd166",
+      8: "#e25a5a"
+    };
+
+    function getBoatClassColor(value, fallback = "#9d7bff") {
+      const raw = String(value || "").trim();
+      const match = raw.match(/^(\d+)/);
+      const seats = match ? Number(match[1]) : Number(value);
+      return BOAT_CLASS_COLOR_MAP[seats] || fallback;
+    }
+
     function buildClassByLocationDataset(boatsWithSeatInfo) {
       const locations = [...new Set(boatsWithSeatInfo.map(b => normalizeStandortKey(b.standort || "Unbekannt")))];
       const seatClasses = [1, 2, 4, 8];
-
-      const colorMap = {
-        1: "#63a4ff",
-        2: "#48d597",
-        4: "#ffd166",
-        8: "#ff7b7b"
-      };
 
       const datasets = seatClasses.map(seats => ({
         label: `${seats}er`,
@@ -876,7 +916,7 @@
             b => normalizeStandortKey(b.standort) === loc && Number(b.seats) === seats
           ).length
         ),
-        backgroundColor: colorMap[seats]
+        backgroundColor: getBoatClassColor(seats)
       }));
 
       return { labels: locations, datasets };
@@ -886,13 +926,6 @@
       const clubs = ["BRG", "SRV", "Unbekannt"];
       const seatClasses = [1, 2, 4, 8];
 
-      const colorMap = {
-        1: "#63a4ff",
-        2: "#48d597",
-        4: "#ffd166",
-        8: "#ff7b7b"
-      };
-
       const datasets = seatClasses.map(seats => ({
         label: `${seats}er`,
         data: clubs.map(club =>
@@ -900,7 +933,7 @@
             b => b.club === club && Number(b.seats) === seats
           ).length
         ),
-        backgroundColor: colorMap[seats]
+        backgroundColor: getBoatClassColor(seats)
       }));
 
       return { labels: clubs, datasets };
@@ -918,19 +951,13 @@
         .sort((a, b) => Number(a) - Number(b));
 
       const seatClasses = [1, 2, 4, 8];
-      const colorMap = {
-        1: "#63a4ff",
-        2: "#48d597",
-        4: "#ffd166",
-        8: "#ff7b7b"
-      };
 
       const datasets = seatClasses.map(seats => ({
         label: `${seats}er`,
         data: years.map(year =>
           filtered.filter(b => String(b.baujahr) === year && Number(b.seats) === seats).length
         ),
-        backgroundColor: colorMap[seats]
+        backgroundColor: getBoatClassColor(seats)
       }));
 
       return { labels: years, datasets };
@@ -964,81 +991,78 @@
     }
 
     function buildClubColorDataset(items) {
-    const clubs = ["BRG", "SRV", "Unbekannt"];
-    const colorOrder = [
-      "blau",
-      "grün",
-      "rot",
-      "gelb",
-      "orange",
-      "pink",
-      "lila",
-      "schwarz",
-      "weiß",
-      "grau",
-      "braun",
-      "Sonstige"
-    ];
+      const clubs = ["BRG", "SRV", "Unbekannt"];
+      const colorOrder = [
+        "blau",
+        "grün",
+        "rot",
+        "gelb",
+        "orange",
+        "lila",
+        "schwarz",
+        "weiß",
+        "grau",
+        "braun",
+        "unbekannt"
+      ];
 
-    const colorChartMap = {
-      "blau": "rgba(99, 164, 255, 0.85)",
-      "grün": "rgba(72, 213, 151, 0.85)",
-      "rot": "rgba(255, 123, 123, 0.85)",
-      "gelb": "rgba(255, 209, 102, 0.85)",
-      "orange": "rgba(255, 159, 90, 0.85)",
-      "pink": "rgba(255, 118, 200, 0.85)",
-      "lila": "rgba(157, 123, 255, 0.85)",
-      "schwarz": "rgba(70, 70, 70, 0.95)",
-      "weiß": "rgba(245, 248, 255, 0.95)",
-      "grau": "rgba(143, 155, 179, 0.9)",
-      "braun": "rgba(150, 75, 0, 0.85)",
-      "Sonstige": "rgba(86, 224, 255, 0.85)"
-    };
+      const colorChartMap = {
+        "blau": "#1f4ea3",
+        "grün": "#1f6b34",
+        "rot": "#a32121",
+        "gelb": "#b28b00",
+        "orange": "#b64a16",
+        "lila": "#6a2dbd",
+        "schwarz": "#1a1a1a",
+        "weiß": "#f4f6f8",
+        "grau": "#5a6472",
+        "braun": "#7a3b12",
+        "unbekannt": createDiagonalPattern("#dce5f4", "rgba(104, 121, 147, 0.28)")
+      };
 
-    const borderChartMap = {
-      "blau": "#63a4ff",
-      "grün": "#48d597",
-      "rot": "#ff7b7b",
-      "gelb": "#ffd166",
-      "orange": "#ff9f5a",
-      "pink": "#ff76c8",
-      "lila": "#9d7bff",
-      "schwarz": "#1f1f1f",
-      "weiß": "#cfd8ea",
-      "grau": "#8f9bb3",
-      "braun": "#964b00",
-      "Sonstige": "#56e0ff"
-    };
+      const borderChartMap = {
+        "blau": "#163a79",
+        "grün": "#184f28",
+        "rot": "#7e1717",
+        "gelb": "#8c6d00",
+        "orange": "#8d3810",
+        "lila": "#4c1f8b",
+        "schwarz": "#000000",
+        "weiß": "#9aa7ba",
+        "grau": "#46505d",
+        "braun": "#5f2d0d",
+        "unbekannt": "#dce5f4"
+      };
 
-    const sums = {};
-    for (const club of clubs) {
-      sums[club] = {};
-      for (const color of colorOrder) sums[club][color] = 0;
+      const sums = {};
+      for (const club of clubs) {
+        sums[club] = {};
+        for (const color of colorOrder) sums[club][color] = 0;
+      }
+
+      for (const item of items) {
+        const parsed = parseClubColorCountFromName(item.name);
+        if (!sums[parsed.club]) sums[parsed.club] = {};
+        if (!sums[parsed.club][parsed.color]) sums[parsed.club][parsed.color] = 0;
+        sums[parsed.club][parsed.color] += Number(parsed.count || 0);
+      }
+
+      const datasets = colorOrder
+        .map((color) => ({
+          label: color,
+          data: clubs.map((club) => sums[club]?.[color] || 0),
+          backgroundColor: colorChartMap[color] || colorChartMap.unbekannt,
+          borderColor: borderChartMap[color] || borderChartMap.unbekannt,
+          borderWidth: color === "weiß" || color === "unbekannt" ? 2 : 1,
+          borderSkipped: false
+        }))
+        .filter((dataset) => dataset.label === "weiß" || dataset.data.some((value) => value > 0));
+
+      return {
+        labels: clubs,
+        datasets
+      };
     }
-
-    for (const item of items) {
-      const parsed = parseClubColorCountFromName(item.name);
-      if (!sums[parsed.club]) sums[parsed.club] = {};
-      if (!sums[parsed.club][parsed.color]) sums[parsed.club][parsed.color] = 0;
-      sums[parsed.club][parsed.color] += Number(parsed.count || 0);
-    }
-
-    const datasets = colorOrder
-      .map(color => ({
-        label: color,
-        data: clubs.map(club => sums[club]?.[color] || 0),
-        backgroundColor: colorChartMap[color] || "rgba(86, 224, 255, 0.85)",
-        borderColor: borderChartMap[color] || "#56e0ff",
-        borderWidth: color === "weiß" ? 2 : 1,
-        borderSkipped: false
-      }))
-      .filter(ds => ds.data.some(v => v > 0));
-
-    return {
-      labels: clubs,
-      datasets
-    };
-  }
 
     function renderInsights(data) {
       const {
@@ -1088,16 +1112,7 @@
 
       if (lowestCapacity) {
         insights.push(`Das größte freie Kapazitätspotenzial liegt aktuell bei <strong>${escapeHtml(lowestCapacity.label)}</strong>, dort sind nur <strong>${lowestCapacity.percent}%</strong> der hinterlegten Plätze belegt.`);
-      }
-
-      if (unlimitedCapacityRows.length) {
-        const labels = unlimitedCapacityRows.map(row => row.label).join(", ");
-        insights.push(`Für <strong>${escapeHtml(labels)}</strong> ist die Kapazität als <strong>unbegrenzt</strong> hinterlegt.`);
-      }
-
-      if (topRoute) {
-        insights.push(`Die häufigste Bewegungsroute im gewählten Zeitraum ist <strong>${escapeHtml(topRoute.label)}</strong> mit <strong>${topRoute.value}</strong> Wechseln.`);
-      }
+      } 
 
       if (topUser) {
         insights.push(`Am aktivsten bei Standortwechseln war <strong>${escapeHtml(topUser.label)}</strong> mit <strong>${topUser.value}</strong> dokumentierten Aktionen.`);
@@ -1129,30 +1144,6 @@
       if (avgAgeNonZero.length) {
         insights.push(`Der höchste Altersdurchschnitt im Bootspark liegt aktuell bei <strong>${escapeHtml(avgAgeNonZero[0].label)}</strong> mit <strong>${avgAgeNonZero[0].value}</strong> Jahren.`);
       }
-
-      if (riemenByClub?.labels?.length) {
-        const riemenTotals = riemenByClub.labels.map((club, index) => ({
-          club,
-          total: riemenByClub.datasets.reduce((sum, ds) => sum + Number(ds.data[index] || 0), 0)
-        })).sort((a, b) => b.total - a.total);
-
-        if (riemenTotals[0] && riemenTotals[0].total > 0) {
-          insights.push(`Bei den Riemen liegt <strong>${escapeHtml(riemenTotals[0].club)}</strong> mit <strong>${riemenTotals[0].total}</strong> erkannten Stück vorn.`);
-        }
-      }
-
-      if (skullsByClub?.labels?.length) {
-        const skullTotals = skullsByClub.labels.map((club, index) => ({
-          club,
-          total: skullsByClub.datasets.reduce((sum, ds) => sum + Number(ds.data[index] || 0), 0)
-        })).sort((a, b) => b.total - a.total);
-
-        if (skullTotals[0] && skullTotals[0].total > 0) {
-          insights.push(`Bei den Skulls liegt <strong>${escapeHtml(skullTotals[0].club)}</strong> mit <strong>${skullTotals[0].total}</strong> erkannten Stück vorn.`);
-        }
-      }
-
-      insights.push(`Für <strong>${boatsWithSeats}</strong> von <strong>${boote.length}</strong> Booten liegt eine Klasseninformation über <code>plaetze</code> vor. Das entspricht <strong>${formatPercent(seatCoverage)}</strong> Datenabdeckung.`);
       insights.push(`Im Durchschnitt entfallen <strong>${avgMovesPerActiveUser.toFixed(1)}</strong> Standortwechsel auf jeden aktiven Nutzer im gewählten Zeitraum.`);
 
       els.insightList.innerHTML = insights
@@ -1249,7 +1240,7 @@
           labels: classRows.map(r => r.label),
           datasets: [{
             data: classRows.map(r => r.value),
-            backgroundColor: ["#63a4ff", "#48d597", "#ffd166", "#ff9f5a", "#9d7bff", "#56e0ff"]
+            backgroundColor: classRows.map(r => getBoatClassColor(r.label))
           }]
         },
         options: commonChartOptions({

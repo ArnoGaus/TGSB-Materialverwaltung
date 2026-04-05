@@ -238,17 +238,21 @@ export default function MaterialList({
   }
 
   const standortMapLayout = {
-    BRG: { top: "22%", left: "18%" },
-    SRV: { top: "22%", left: "72%" },
+    BRG: { top: "23%", left: "18%" },
+    SRV: { top: "23%", left: "72%" },
     Fühlingen: { top: "74%", left: "28%" },
     Extern: { top: "74%", left: "78%" },
+    Regatta: { top: "74%", left: "50%" },
+    Trainingslager: { top: "23%", left: "50%" },
   };
 
   const roadLines = [
-    { x1: 18, y1: 22, x2: 72, y2: 22 },
-    { x1: 18, y1: 22, x2: 28, y2: 74 },
-    { x1: 72, y1: 22, x2: 78, y2: 74 },
+    { x1: 18, y1: 23, x2: 72, y2: 23 },
+    { x1: 18, y1: 23, x2: 28, y2: 74 },
+    { x1: 72, y1: 23, x2: 78, y2: 74 },
     { x1: 28, y1: 74, x2: 78, y2: 74 },
+    { x1: 18, y1: 74, x2: 50, y2: 74 },
+    { x1: 72, y1: 23, x2: 50, y2: 23 },
   ];
 
   function getStandortCenter(standortName) {
